@@ -1,15 +1,11 @@
-
-
-
-// --- Player ---
-export class Player {
+class Player {
   constructor(x, y) {
     this.x = x;
     this.y = y;
     this.curr_money = 0;
     this.owned_mines = [];
     this.owned_rivers = [];
-    this.previous_actions = []; //should be a tuple of action and timestep
+    this.previous_actions = []; // each entry: { action, timestamp }
   }
 
   /** Log an action to history. */

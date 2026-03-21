@@ -1,12 +1,6 @@
-
-const player = new Player(Math.floor(0), Math.floor(0));
-
-// Track all active mines
+// --- Instances ---
+const player = new Player(0, 0);
 const mines = [];
-
-// Place one mine at a random position
-const mineX = Math.floor(Math.random() * GRID_SIZE);
-const mineY = Math.floor(Math.random() * GRID_SIZE);
 
 // --- Grid State ---
 const grid = Array.from({ length: GRID_SIZE }, () =>
@@ -19,6 +13,7 @@ canvas.width = GRID_SIZE * CELL_PX;
 canvas.height = GRID_SIZE * CELL_PX;
 const ctx = canvas.getContext("2d");
 
+// --- Helpers ---
 
 /** Get cell data at (x, y). Returns null if out of bounds. */
 function getCell(x, y) {
@@ -49,7 +44,20 @@ function clearGrid() {
   }
 }
 
+/** Plot a mine at the given grid coordinates. */
+function plotRiver(x, y, options = {}) {
+  const mine = new Mine(x, y, options);
+  mines.push(mine);
+  setCell(x, y, MINE_COLOR);
+  return mine;
+}
 
+// Place one mine at a random position
+const mineX = Math.floor(Math.random() * GRID_SIZE);
+const mineY = Math.floor(Math.random() * GRID_SIZE);
+plotRiver(mineX, mineY, { reward: 10, level: 1, risk: 0.5 });
+
+// --- Rendering ---
 
 function draw() {
   // Background
