@@ -94,4 +94,12 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
+// Kick off
+requestAnimationFrame(gameLoop);
+
+// River Mine
+import { RiverMine } from "./RiverMine.js";
+
+const riverMine = new RiverMine(10, 10);
+riverMine.place(setCell);
 requestAnimationFrame(gameLoop);
