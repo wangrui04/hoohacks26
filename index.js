@@ -96,28 +96,113 @@ function plotRiver(x, y, options = {}) {
   return rm;
 }
 
+// ========================
+// Balanced distance filtering
+// ========================
+
+// Compute a "total accessible value" score for a player given a set of assets.
+// Value = sum of (reward / price) for each asset — higher means better opportunities.
+function computePlayerValue(px, py, assets) {
+  let total = 0;
+  for (const a of assets) {
+    const d = dist(px, py, a.x, a.y);
+    const price = a.type === "mine"
+      ? minePriceFn(d, a.level)
+      : riverPriceFn(d, a.level);
+    total += a.reward / price;
+  }
+  return total;
+}
+
+// Check if a layout is balanced: neither player's total value exceeds
+// the other's by more than the allowed ratio (e.g. 1.4 = 40% gap max).
+const FAIRNESS_RATIO = 1.4;
+const MAX_GENERATION_ATTEMPTS = 50;
+
+function isLayoutFair(assets) {
+  const v1 = computePlayerValue(players[0].x, players[0].y, assets);
+  const v2 = computePlayerValue(players[1].x, players[1].y, assets);
+  if (v1 === 0 || v2 === 0) return false;
+  const ratio = Math.max(v1 / v2, v2 / v1);
+  return ratio <= FAIRNESS_RATIO;
+}
+
+function generateCandidateAssets() {
+  const assets = [];
+
+  for (let i = 0; i < NUM_MINES; i++) {
+    const { x, y } = randomFreeCell();
+    const level = randInt(3) + 1;
+    assets.push({
+      x, y, level,
+      type: "mine",
+      reward: level * 10,
+      risk: Math.round((level * 0.2 + 0.1) * 100) / 100,
+    });
+    // Temporarily mark cell so randomFreeCell won't pick it again
+    setCell(x, y, MINE_COLOR);
+  }
+
+  for (let i = 0; i < NUM_RIVERS; i++) {
+    const { x, y } = randomFreeCell();
+    const level = randInt(3) + 1;
+    assets.push({
+      x, y, level,
+      type: "river",
+      reward: level * 8,
+    });
+    setCell(x, y, "blue");
+  }
+
+  return assets;
+}
+
 function generateScene() {
+  let bestAssets = null;
+  let bestRatio = Infinity;
+
+  for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+    // Clear grid for fresh placement
+    clearGrid();
+    mines.length = 0;
+    riverMines.length = 0;
+    mineCounter = 0;
+    riverCounter = 0;
+
+    const assets = generateCandidateAssets();
+
+    const v1 = computePlayerValue(players[0].x, players[0].y, assets);
+    const v2 = computePlayerValue(players[1].x, players[1].y, assets);
+    const ratio = (v1 === 0 || v2 === 0) ? Infinity : Math.max(v1 / v2, v2 / v1);
+
+    // Track the best layout in case none passes the threshold
+    if (ratio < bestRatio) {
+      bestRatio = ratio;
+      bestAssets = assets.map(a => ({ ...a }));
+    }
+
+    if (ratio <= FAIRNESS_RATIO) {
+      bestAssets = assets;
+      break;
+    }
+  }
+
+  // Commit the best layout found
   clearGrid();
   mines.length = 0;
   riverMines.length = 0;
   mineCounter = 0;
   riverCounter = 0;
 
-  for (let i = 0; i < NUM_MINES; i++) {
-    const { x, y } = randomFreeCell();
-    const level = randInt(3) + 1;
-    plotMine(x, y, {
-      reward: level * 10,
-      level: level,
-      risk: Math.round((level * 0.2 + 0.1) * 100) / 100,
-    });
+  for (const a of bestAssets) {
+    if (a.type === "mine") {
+      plotMine(a.x, a.y, { reward: a.reward, level: a.level, risk: a.risk });
+    } else {
+      plotRiver(a.x, a.y, { reward: a.reward, level: a.level });
+    }
   }
 
-  for (let i = 0; i < NUM_RIVERS; i++) {
-    const { x, y } = randomFreeCell();
-    const level = randInt(3) + 1;
-    plotRiver(x, y, { reward: level * 8, level: level });
-  }
+  console.log(`Scene generated — fairness ratio: ${bestRatio.toFixed(2)}`);
 }
 
 // ========================

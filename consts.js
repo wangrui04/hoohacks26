@@ -20,9 +20,14 @@ const GRID_SIZE = 20;
 const CELL_PX = 30;
 
 // --- Scene ---
-const NUM_MINES = 7;
-const NUM_RIVERS = 13;
-const PLAYER_ZONE_RADIUS = 10;
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// --- Scene ---
+const NUM_MINES = getRandomInt(5, 12);
+const NUM_RIVERS = getRandomInt(7, 17);
+const PLAYER_ZONE_RADIUS = 5;
 
 function minePriceFn(distance, level) {
   return Math.max(1, Math.round((8 + level * 6) * Math.exp(0.03 * distance)));
