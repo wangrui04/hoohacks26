@@ -4,7 +4,7 @@
 
 // --- Instances ---
 const player = new Player(0, 0);
-const player2 = new Player(63, 63);
+const player2 = new Player(31, 31);
 const players = [player, player2];
 const mines = [];
 const riverMines = [];
