@@ -4,7 +4,7 @@
 
 // --- Instances ---
 const player = new Player(0, 0);
-const player2 = new Player(63, 63);
+const player2 = new Player(31, 31);
 const players = [player, player2];
 const mines = [];
 const riverMines = [];
@@ -16,9 +16,40 @@ let gameOver = false;
 let selectedItem = null;
 let selectedType = null;
 
+// --- Round (best-of-5) State ---
+let currentRound = 1;
+const roundWins = [0, 0]; // wins per player
+let matchOver = false;
+
 // --- Label Counters ---
 let mineCounter = 0;
 let riverCounter = 0;
+
+function resetForNewRound() {
+  // Reset players
+  for (const p of players) {
+    p.curr_money = STARTING_MONEY;
+    p.owned_mines = [];
+    p.owned_rivers = [];
+  }
+
+  // Reset turn state
+  currentPlayerIndex = 0;
+  turnNumber = 1;
+  gameOver = false;
+  selectedItem = null;
+  selectedType = null;
+  roundSelections[0] = null;
+  roundSelections[1] = null;
+
+  // Regenerate map
+  generateScene();
+
+  // Update all displays
+  updateHUD();
+  hideBuyDialog();
+  hideUpgradeDialog();
+}
 
 // ========================
 // Scene helpers
@@ -112,7 +143,7 @@ function findItemAt(gx, gy) {
 // ========================
 
 canvas.addEventListener("click", (e) => {
-  if (gameOver) return;
+  if (gameOver || matchOver) return;
 
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
@@ -131,15 +162,16 @@ canvas.addEventListener("click", (e) => {
   const p = players[currentPlayerIndex];
   const d = dist(p.x, p.y, result.item.x, result.item.y);
   const price =
-    result.type === "mine" ? minePriceFn(d) : riverPriceFn(d);
+    result.type === "mine" ? minePriceFn(d, result.item.level) : riverPriceFn(d, result.item.level);
 
   selectedItem = result.item;
   selectedType = result.type;
+  hideUpgradeDialog();
   showBuyDialog(result.item, result.type, price);
 });
 
 btnBuy.addEventListener("click", () => {
-  if (!selectedItem || gameOver) return;
+  if (!selectedItem || gameOver || matchOver) return;
 
   const p = players[currentPlayerIndex];
   const idx = currentPlayerIndex;
@@ -155,6 +187,32 @@ btnBuy.addEventListener("click", () => {
 btnCancel.addEventListener("click", () => {
   hideBuyDialog();
   updateStatus("Click a mine or river to buy it.");
+});
+
+btnUpgrade.addEventListener("click", () => {
+  if (gameOver || matchOver) return;
+  showUpgradeDialog(currentPlayerIndex);
+});
+
+btnUpgradeCancel.addEventListener("click", () => {
+  hideUpgradeDialog();
+  updateStatus("Click a mine or river to buy it.");
+});
+
+btnSkip.addEventListener("click", () => {
+  if (gameOver || matchOver) return;
+  hideBuyDialog();
+  hideUpgradeDialog();
+
+  roundSelections[currentPlayerIndex] = {
+    label: "Skipped",
+    type: "skip",
+    price: 0,
+  };
+  players[currentPlayerIndex].recordAction("skip");
+  updateStatus(`Player ${currentPlayerIndex + 1} skipped their turn.`);
+
+  setTimeout(nextTurn, 800);
 });
 
 // ========================
@@ -175,6 +233,5 @@ function gameLoop(timestamp) {
 // ========================
 
 generateScene();
-updateMoneyDisplay();
-updateTurnLabel();
+updateHUD();
 requestAnimationFrame(gameLoop);

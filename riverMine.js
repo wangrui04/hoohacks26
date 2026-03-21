@@ -10,6 +10,7 @@ class RiverMine {
     this.color = "blue";
     this.reward = reward;
     this.level = level;
+    this.upgrades = 0;
   }
 
   place(setCell) {
