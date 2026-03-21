@@ -79,7 +79,7 @@ function collectIncome() {
 }
 
 function printRoundSummary(playerIncomes) {
-  let html = `<div class="round-header">═══ Round ${turnNumber} Summary ═══</div>`;
+  let html = `<div class="round-header">═══ Turn ${turnNumber} Summary ═══</div>`;
 
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
@@ -125,15 +125,15 @@ function nextTurn() {
     if (players[i].hasWon()) {
       gameOver = true;
       roundWins[i]++;
-      appendRoundLog(`<div class="round-header">★ Player ${i + 1} wins Round ${currentRound} with $${players[i].curr_money}! ★</div>`);
+      appendRoundLog(`<div class="round-header">★ Player ${i + 1} wins Match ${currentRound} with $${players[i].curr_money}! ★</div>`);
       updateRoundScore();
 
       // Check if match is decided
       const winsNeeded = Math.ceil(TOTAL_ROUNDS / 2); // 3 out of 5
       if (roundWins[i] >= winsNeeded) {
         matchOver = true;
-        updateStatus(`Player ${i + 1} wins the match ${roundWins[i]}–${roundWins[1 - i]}!`);
-        appendRoundLog(`<div class="round-header">══ Player ${i + 1} wins the match ${roundWins[i]}–${roundWins[1 - i]}! ══</div>`);
+        updateStatus(`Player ${i + 1} wins the game ${roundWins[i]}–${roundWins[1 - i]}!`);
+        appendRoundLog(`<div class="round-header">══ Player ${i + 1} wins the game ${roundWins[i]}–${roundWins[1 - i]}! ══</div>`);
         hideBuyDialog();
         hideUpgradeDialog();
         return;
@@ -156,11 +156,11 @@ function nextTurn() {
       }
 
       // Start next round after a delay
-      updateStatus(`Player ${i + 1} wins Round ${currentRound}! Next round starting...`);
+      updateStatus(`Player ${i + 1} wins Match ${currentRound}! Next match starting...`);
       currentRound++;
       setTimeout(() => {
         resetForNewRound();
-        appendRoundLog(`<div class="round-header">══ Round ${currentRound} Begin ══</div>`);
+        appendRoundLog(`<div class="round-header">══ Match ${currentRound} Begin ══</div>`);
         updateStatus("Click a mine or river to buy it.");
       }, 2000);
       return;

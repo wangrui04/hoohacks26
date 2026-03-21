@@ -38,7 +38,7 @@ function updateRoundScore() {
 }
 
 function updateHUD() {
-  const text = `Turn ${turnNumber} — Player ${currentPlayerIndex + 1} | Round ${currentRound}/${TOTAL_ROUNDS} | Wins — P1: ${roundWins[0]} P2: ${roundWins[1]} | P1: $${player.curr_money} P2: $${player2.curr_money}`;
+  const text = `Turn ${turnNumber} — Player ${currentPlayerIndex + 1} | Match ${currentRound}/${TOTAL_ROUNDS} | Wins — P1: ${roundWins[0]} P2: ${roundWins[1]} | P1: $${player.curr_money} P2: $${player2.curr_money}`;
   
   document.getElementById("hud-text").textContent = text;
 }
