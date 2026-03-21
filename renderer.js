@@ -9,7 +9,7 @@ const ctx = canvas.getContext("2d");
 
 // Load background map
 const mapImg = new Image();
-mapImg.src = "GoldRush/Map.png"; // or "images/map.png"
+mapImg.src = "Images/Map.png"; // or "images/map.png"
 
 function draw() {
   // Draw map background
