@@ -8,12 +8,20 @@
 </head>
 <body>
   <div id="game-container">
+    <div id="money">P1: $10  |  P2: $10</div>
+    <div id="prompt-label">Turn 1 — Player 1</div>
+    <div id="status">Click a mine or river to buy it.</div>
     <canvas id="grid" width="640" height="640"></canvas>
+    <div id="buy-dialog" style="display: none;">
+      <span id="buy-info"></span>
+      <button id="btn-buy">Buy</button>
+      <button id="btn-cancel">Cancel</button>
+    </div>
   </div>
-    <script src="consts.js"></script>
-    <script src="mine.js"></script>
-    <script src="RiverMine.js"></script>
-    <script src="player.js"></script>
-    <script src="index.js"></script>
+  <script src="consts.js"></script>
+  <script src="mine.js"></script>
+  <script src="RiverMine.js"></script>
+  <script src="player.js"></script>
+  <script src="index.js"></script>
 </body>
 </html>
