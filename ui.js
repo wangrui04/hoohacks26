@@ -9,6 +9,16 @@ const buyDialog = document.getElementById("buy-dialog");
 const buyInfo = document.getElementById("buy-info");
 const btnBuy = document.getElementById("btn-buy");
 const btnCancel = document.getElementById("btn-cancel");
+const roundLogEl = document.getElementById("round-log");
+
+// --- Per-round selection tracking ---
+// roundSelections[playerIndex] = { label, type, price } set when they buy
+const roundSelections = [null, null];
+
+function appendRoundLog(html) {
+  roundLogEl.innerHTML += html;
+  roundLogEl.scrollTop = roundLogEl.scrollHeight;
+}
 
 function updateStatus(msg) {
   statusEl.textContent = msg;
@@ -25,8 +35,8 @@ function updateTurnLabel() {
 function showBuyDialog(item, type, price) {
   const label =
     type === "mine"
-      ? `${item.label} — Price: $${price}, Reward: ${item.reward}, Risk: ${item.risk}`
-      : `${item.label} — Price: $${price}, Reward: ${item.reward}/turn`;
+      ? `${item.label} — Cost: $${price}, Risk: ${(item.risk * 100).toFixed(0)}%`
+      : `${item.label} — Cost: $${price}, Risk: None`;
   buyInfo.textContent = label;
   buyDialog.style.display = "flex";
 }
