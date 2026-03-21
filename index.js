@@ -4,7 +4,7 @@
 
 // --- Instances ---
 const player = new Player(0, 0);
-const player2 = new Player(63, 63);
+const player2 = new Player(31, 31);
 const players = [player, player2];
 const mines = [];
 const riverMines = [];
@@ -131,7 +131,7 @@ canvas.addEventListener("click", (e) => {
   const p = players[currentPlayerIndex];
   const d = dist(p.x, p.y, result.item.x, result.item.y);
   const price =
-    result.type === "mine" ? minePriceFn(d) : riverPriceFn(d);
+    result.type === "mine" ? minePriceFn(d, result.item.level) : riverPriceFn(d, result.item.level);
 
   selectedItem = result.item;
   selectedType = result.type;
