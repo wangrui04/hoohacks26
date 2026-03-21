@@ -3,8 +3,9 @@
 // ========================
 
 const statusEl = document.getElementById("status");
-const promptLabel = document.getElementById("prompt-label");
-const moneyEl = document.getElementById("money");
+//const promptLabel = document.getElementById("prompt-label");
+//const moneyEl = document.getElementById("money");
+//const roundScoreEl = document.getElementById("round-score");
 const buyDialog = document.getElementById("buy-dialog");
 const buyInfo = document.getElementById("buy-info");
 const btnBuy = document.getElementById("btn-buy");
@@ -25,11 +26,21 @@ function updateStatus(msg) {
 }
 
 function updateMoneyDisplay() {
-  moneyEl.textContent = `P1: $${player.curr_money}  |  P2: $${player2.curr_money}`;
+  updateHUD();
 }
 
 function updateTurnLabel() {
-  promptLabel.textContent = `Turn ${turnNumber} — Player ${currentPlayerIndex + 1}`;
+  updateHUD();
+}
+
+function updateRoundScore() {
+  updateHUD();
+}
+
+function updateHUD() {
+  const text = `Turn ${turnNumber} — Player ${currentPlayerIndex + 1} | Round ${currentRound}/${TOTAL_ROUNDS} | Wins — P1: ${roundWins[0]} P2: ${roundWins[1]} | P1: $${player.curr_money} P2: $${player2.curr_money}`;
+  
+  document.getElementById("hud-text").textContent = text;
 }
 
 function showBuyDialog(item, type, price) {
@@ -42,6 +53,7 @@ function showBuyDialog(item, type, price) {
 }
 
 const btnUpgrade = document.getElementById("btn-upgrade");
+const btnSkip = document.getElementById("btn-skip");
 const upgradeDialog = document.getElementById("upgrade-dialog");
 const upgradeList = document.getElementById("upgrade-list");
 const btnUpgradeCancel = document.getElementById("btn-upgrade-cancel");
@@ -53,18 +65,31 @@ function showUpgradeDialog(playerIdx) {
   const allAssets = [];
 
   for (const mine of p.owned_mines) {
-    const newReward = Math.round(mine.reward * 1.25);
-    const disabled = mine.collapsed;
-    const label = disabled
-      ? `${mine.label} (Lv${mine.level}) — COLLAPSED`
-      : `${mine.label} (Lv${mine.level}, +${mine.upgrades} upgrades) — Reward: $${mine.reward} → $${newReward}`;
+    const maxed = mine.upgrades >= 1;
+    const disabled = mine.collapsed || maxed;
+    let label;
+    if (mine.collapsed) {
+      label = `${mine.label} (Lv${mine.level}) — COLLAPSED`;
+    } else if (maxed) {
+      label = `${mine.label} (Lv${mine.level}) — MAX LEVEL`;
+    } else {
+      const newReward = Math.round(mine.reward * 1.25);
+      label = `${mine.label} (Lv${mine.level}) — Reward: $${mine.reward} → $${newReward}`;
+    }
     allAssets.push({ item: mine, type: "mine", label, disabled });
   }
 
   for (const river of p.owned_rivers) {
-    const newReward = Math.round(river.reward * 1.25);
-    const label = `${river.label} (Lv${river.level}, +${river.upgrades} upgrades) — Reward: $${river.reward} → $${newReward}`;
-    allAssets.push({ item: river, type: "river", label, disabled: false });
+    const maxed = river.upgrades >= 1;
+    const disabled = maxed;
+    let label;
+    if (maxed) {
+      label = `${river.label} (Lv${river.level}) — MAX LEVEL`;
+    } else {
+      const newReward = Math.round(river.reward * 1.25);
+      label = `${river.label} (Lv${river.level}) — Reward: $${river.reward} → $${newReward}`;
+    }
+    allAssets.push({ item: river, type: "river", label, disabled });
   }
 
   if (allAssets.length === 0) {

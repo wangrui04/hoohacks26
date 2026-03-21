@@ -11,8 +11,9 @@ const PLAYER_COLORS = ["#ff4444", "#ef44ff"];
 const MINE_COLOR = "#ffdd00";
 
 // --- Game Objective ---
-const WIN_GOLD = 1000;
+const WIN_GOLD = 500;
 const STARTING_MONEY = 50;
+const TOTAL_ROUNDS = 5;
 
 // --- Grid ---
 const GRID_SIZE = 32;
@@ -24,8 +25,8 @@ const NUM_RIVERS = 15;
 const PLAYER_ZONE_RADIUS = 10;
 
 function minePriceFn(distance, level) {
-  return Math.max(1, Math.round((8 + level * 6) * Math.exp(0.1 * distance)));
+  return Math.max(1, Math.round((8 + level * 6) * Math.exp(0.03 * distance)));
 }
 function riverPriceFn(distance, level) {
-  return Math.max(1, Math.round((4 + level * 4) * Math.exp(0.1 * distance)));
+  return Math.max(1, Math.round((4 + level * 4) * Math.exp(0.03 * distance)));
 }

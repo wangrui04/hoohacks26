@@ -60,8 +60,7 @@ function collectIncome() {
         setCell(mine.x, mine.y, "#333");
         continue;
       }
-        const income = Math.round(river.reward * (1 + 0.1 * river.turnsOwned));
-        river.turnsOwned++;
+      const income = Math.round(mine.reward * (1 + mine.risk));
       p.curr_money += income;
       incomeDetails.push({ source: mine.label, amount: income, caveIn: false });
     }
@@ -121,12 +120,49 @@ function nextTurn() {
     collectIncome();
   }
 
+  // Check if someone hit the win target for this round
   for (let i = 0; i < players.length; i++) {
     if (players[i].hasWon()) {
       gameOver = true;
-      updateStatus(`Player ${i + 1} wins with $${players[i].curr_money}!`);
-      hideBuyDialog();
-      hideUpgradeDialog();
+      roundWins[i]++;
+      appendRoundLog(`<div class="round-header">★ Player ${i + 1} wins Round ${currentRound} with $${players[i].curr_money}! ★</div>`);
+      updateRoundScore();
+
+      // Check if match is decided
+      const winsNeeded = Math.ceil(TOTAL_ROUNDS / 2); // 3 out of 5
+      if (roundWins[i] >= winsNeeded) {
+        matchOver = true;
+        updateStatus(`Player ${i + 1} wins the match ${roundWins[i]}–${roundWins[1 - i]}!`);
+        appendRoundLog(`<div class="round-header">══ Player ${i + 1} wins the match ${roundWins[i]}–${roundWins[1 - i]}! ══</div>`);
+        hideBuyDialog();
+        hideUpgradeDialog();
+        return;
+      }
+
+      // Check if all rounds played
+      if (currentRound >= TOTAL_ROUNDS) {
+        matchOver = true;
+        const winner = roundWins[0] > roundWins[1] ? 1 : roundWins[1] > roundWins[0] ? 2 : 0;
+        if (winner === 0) {
+          updateStatus(`Match tied ${roundWins[0]}–${roundWins[1]}!`);
+          appendRoundLog(`<div class="round-header">══ Match tied ${roundWins[0]}–${roundWins[1]}! ══</div>`);
+        } else {
+          updateStatus(`Player ${winner} wins the match ${roundWins[winner - 1]}–${roundWins[2 - winner]}!`);
+          appendRoundLog(`<div class="round-header">══ Player ${winner} wins the match ${roundWins[winner - 1]}–${roundWins[2 - winner]}! ══</div>`);
+        }
+        hideBuyDialog();
+        hideUpgradeDialog();
+        return;
+      }
+
+      // Start next round after a delay
+      updateStatus(`Player ${i + 1} wins Round ${currentRound}! Next round starting...`);
+      currentRound++;
+      setTimeout(() => {
+        resetForNewRound();
+        appendRoundLog(`<div class="round-header">══ Round ${currentRound} Begin ══</div>`);
+        updateStatus("Click a mine or river to buy it.");
+      }, 2000);
       return;
     }
   }
@@ -139,6 +175,11 @@ function nextTurn() {
 }
 
 function performUpgrade(playerIdx, item, type) {
+  if (item.upgrades >= 1) {
+    updateStatus(`Can't upgrade ${item.label} — already at max level!`);
+    return;
+  }
+
   const oldReward = item.reward;
   item.reward = Math.round(item.reward * 1.25);
   item.upgrades++;

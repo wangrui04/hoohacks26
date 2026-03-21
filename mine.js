@@ -10,10 +10,7 @@ class Mine {
     this.level = level;
     this.risk = risk;
     this.collapsed = false;
-<<<<<<< HEAD
-    this.upgrades = 0;
-=======
     this.depleted = false;
->>>>>>> 3a9c82acde66ba8f37851e6c96b1cd24a7dbd453
+    this.upgrades = 0;
   }
 }
