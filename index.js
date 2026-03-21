@@ -99,7 +99,7 @@ function gameLoop(timestamp) {
 requestAnimationFrame(gameLoop);
 
 // River Mine
-import { riverMine } from "./riverMine.js";
+import { RiverMine } from "./RiverMine.js";
 
-const riverMine = new riverMine(10, 10);
+const riverMine = new RiverMine(10, 10);
 riverMine.place(setCell);
