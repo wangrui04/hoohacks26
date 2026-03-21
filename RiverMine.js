@@ -1,4 +1,4 @@
-export class RiverMine{
+class RiverMine{
     constructor(x, y, {reward = 10, level = 1} = {}) {
         this.x = x;
         this.y = y;

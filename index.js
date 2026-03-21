@@ -1,6 +1,10 @@
 // --- Instances ---
 const player = new Player(0, 0);
+const player2 = new Player(63, 63);
+const players = [player, player2];
+
 const mines = [];
+const riverMines = [];
 
 // --- Grid State ---
 const grid = Array.from({ length: GRID_SIZE }, () =>
@@ -44,18 +48,85 @@ function clearGrid() {
   }
 }
 
+/** Returns a random int in [0, max). */
+function randInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+/** Check if a cell is already occupied. */
+function isCellFree(x, y) {
+  const cell = getCell(x, y);
+  return cell && cell.color === null;
+}
+
+/** Check if (x, y) is within a 10x10 box centered on any player. */
+function isInPlayerZone(x, y) {
+  const ZONE = 10; // half-width of the 10x10 box
+  for (const p of players) {
+    if (Math.abs(x - p.x) < ZONE && Math.abs(y - p.y) < ZONE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Get a random free cell that is outside all player exclusion zones. */
+function randomFreeCell() {
+  let x, y;
+  do {
+    x = randInt(GRID_SIZE);
+    y = randInt(GRID_SIZE);
+  } while (!isCellFree(x, y) || isInPlayerZone(x, y));
+  return { x, y };
+}
+
 /** Plot a mine at the given grid coordinates. */
-function plotRiver(x, y, options = {}) {
+function plotMine(x, y, options = {}) {
   const mine = new Mine(x, y, options);
   mines.push(mine);
   setCell(x, y, MINE_COLOR);
   return mine;
 }
 
-// Place one mine at a random position
-const mineX = Math.floor(Math.random() * GRID_SIZE);
-const mineY = Math.floor(Math.random() * GRID_SIZE);
-plotRiver(mineX, mineY, { reward: 10, level: 1, risk: 0.5 });
+/** Plot a river mine at the given grid coordinates. */
+function plotRiver(x, y, options = {}) {
+  const rm = new RiverMine(x, y, options);
+  riverMines.push(rm);
+  rm.place(setCell);
+  return rm;
+}
+
+// --- Scene Generation ---
+
+const NUM_MINES = 10;
+const NUM_RIVERS = 5;
+
+function generateScene() {
+  clearGrid();
+  mines.length = 0;
+  riverMines.length = 0;
+
+  // Spawn mines
+  for (let i = 0; i < NUM_MINES; i++) {
+    const { x, y } = randomFreeCell();
+    const level = randInt(3) + 1;
+    plotMine(x, y, {
+      reward: level * 10,
+      level: level,
+      risk: Math.round((level * 0.2 + 0.1) * 100) / 100,
+    });
+  }
+
+  // Spawn river mines
+  for (let i = 0; i < NUM_RIVERS; i++) {
+    const { x, y } = randomFreeCell();
+    const level = randInt(3) + 1;
+    plotRiver(x, y, { reward: level * 8, level: level });
+  }
+}
+
+// Build the scene
+generateScene();
 
 // --- Rendering ---
 
@@ -103,11 +174,4 @@ function gameLoop(timestamp) {
 }
 
 // Kick off
-requestAnimationFrame(gameLoop);
-
-// River Mine
-import { RiverMine } from "./RiverMine.js";
-
-const riverMine = new RiverMine(10, 10);
-riverMine.place(setCell);
 requestAnimationFrame(gameLoop);
