@@ -126,6 +126,7 @@ function nextTurn() {
       gameOver = true;
       updateStatus(`Player ${i + 1} wins with $${players[i].curr_money}!`);
       hideBuyDialog();
+      hideUpgradeDialog();
       return;
     }
   }
@@ -135,4 +136,26 @@ function nextTurn() {
 
   updateTurnLabel();
   updateStatus("Click a mine or river to buy it.");
+}
+
+function performUpgrade(playerIdx, item, type) {
+  const oldReward = item.reward;
+  item.reward = Math.round(item.reward * 1.25);
+  item.upgrades++;
+
+  const typeLabel = type === "mine" ? item.label : item.label;
+  roundSelections[playerIdx] = {
+    label: `Upgrade ${typeLabel}`,
+    type: "upgrade",
+    price: 0,
+  };
+
+  players[playerIdx].recordAction("upgrade " + type);
+  updateStatus(
+    `Player ${playerIdx + 1} upgraded ${typeLabel} — reward: $${oldReward} → $${item.reward}`
+  );
+  updateMoneyDisplay();
+  hideUpgradeDialog();
+
+  setTimeout(nextTurn, 800);
 }

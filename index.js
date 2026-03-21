@@ -135,6 +135,7 @@ canvas.addEventListener("click", (e) => {
 
   selectedItem = result.item;
   selectedType = result.type;
+  hideUpgradeDialog();
   showBuyDialog(result.item, result.type, price);
 });
 
@@ -154,6 +155,16 @@ btnBuy.addEventListener("click", () => {
 
 btnCancel.addEventListener("click", () => {
   hideBuyDialog();
+  updateStatus("Click a mine or river to buy it.");
+});
+
+btnUpgrade.addEventListener("click", () => {
+  if (gameOver) return;
+  showUpgradeDialog(currentPlayerIndex);
+});
+
+btnUpgradeCancel.addEventListener("click", () => {
+  hideUpgradeDialog();
   updateStatus("Click a mine or river to buy it.");
 });
 
