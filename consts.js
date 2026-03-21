@@ -16,8 +16,8 @@ const STARTING_MONEY = 50;
 const TOTAL_ROUNDS = 5;
 
 // --- Grid ---
-const GRID_SIZE = 32;
-const CELL_PX = 10;
+const GRID_SIZE = 20;
+const CELL_PX = 30;
 
 // --- Scene ---
 const NUM_MINES = 7;
