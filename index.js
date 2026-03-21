@@ -1,10 +1,14 @@
-// --- Constants ---
-const GRID_SIZE = 64;
-const CELL_PX = 10; // each cell is 10x10 pixels on the canvas
+
+const player = new Player(Math.floor(0), Math.floor(0));
+
+// Track all active mines
+const mines = [];
+
+// Place one mine at a random position
+const mineX = Math.floor(Math.random() * GRID_SIZE);
+const mineY = Math.floor(Math.random() * GRID_SIZE);
 
 // --- Grid State ---
-// 2D array: each cell is an object you can extend with whatever you need.
-// Default color is null (empty / background).
 const grid = Array.from({ length: GRID_SIZE }, () =>
   Array.from({ length: GRID_SIZE }, () => ({ color: null }))
 );
@@ -15,7 +19,6 @@ canvas.width = GRID_SIZE * CELL_PX;
 canvas.height = GRID_SIZE * CELL_PX;
 const ctx = canvas.getContext("2d");
 
-// --- Helpers ---
 
 /** Get cell data at (x, y). Returns null if out of bounds. */
 function getCell(x, y) {
@@ -46,9 +49,7 @@ function clearGrid() {
   }
 }
 
-// --- Rendering ---
-const BG_COLOR = "#1a1a1a";
-const LINE_COLOR = "#2a2a2a";
+
 
 function draw() {
   // Background
@@ -86,14 +87,11 @@ function draw() {
 let lastTime = 0;
 
 function gameLoop(timestamp) {
-  const dt = (timestamp - lastTime) / 1000; // delta in seconds
+  const dt = (timestamp - lastTime) / 1000;
   lastTime = timestamp;
-
-  // TODO: update(dt) — put your game logic here
 
   draw();
   requestAnimationFrame(gameLoop);
 }
 
-// Kick off
 requestAnimationFrame(gameLoop);
