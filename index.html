@@ -1,27 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Grid Game</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gold Rush</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="game-container">
-    <div id="money">P1: $10  |  P2: $10</div>
-    <div id="prompt-label">Turn 1 — Player 1</div>
-    <div id="status">Click a mine or river to buy it.</div>
-    <canvas id="grid" width="640" height="640"></canvas>
-    <div id="buy-dialog" style="display: none;">
+    <div id="hud">
+      <span id="prompt-label">Turn 1 — Player 1</span>
+      <span id="money">P1: $50  |  P2: $50</span>
+    </div>
+
+    <canvas id="grid"></canvas>
+
+    <div id="buy-dialog" style="display: none">
       <span id="buy-info"></span>
       <button id="btn-buy">Buy</button>
       <button id="btn-cancel">Cancel</button>
     </div>
+
+    <div id="status">Click a mine or river to buy it.</div>
   </div>
+
   <script src="consts.js"></script>
-  <script src="mine.js"></script>
-  <script src="RiverMine.js"></script>
+  <script src="utils.js"></script>
   <script src="player.js"></script>
+  <script src="mine.js"></script>
+  <script src="riverMine.js"></script>
+  <script src="ui.js"></script>
+  <script src="renderer.js"></script>
+  <script src="turnSystem.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

@@ -1,3 +1,7 @@
+// ========================
+// player.js — Player data class
+// ========================
+
 class Player {
   constructor(x, y) {
     this.x = x;
