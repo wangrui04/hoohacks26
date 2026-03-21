@@ -4,7 +4,7 @@
 
 function buyItem(p, playerIdx, item, type) {
   const d = dist(p.x, p.y, item.x, item.y);
-  const price = type === "mine" ? minePriceFn(d) : riverPriceFn(d);
+  const price = type === "mine" ? minePriceFn(d, item.level) : riverPriceFn(d, item.level);
 
   if (p.curr_money < price) {
     updateStatus(`Can't afford! Costs $${price}, you have $${p.curr_money}`);
@@ -60,8 +60,8 @@ function collectIncome() {
         setCell(mine.x, mine.y, "#333");
         continue;
       }
-
-      const income = Math.round(mine.reward * (1 + mine.risk));
+        const income = Math.round(river.reward * (1 + 0.1 * river.turnsOwned));
+        river.turnsOwned++;
       p.curr_money += income;
       incomeDetails.push({ source: mine.label, amount: income, caveIn: false });
     }
