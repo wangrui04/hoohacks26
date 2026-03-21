@@ -7,9 +7,18 @@ canvas.width = GRID_SIZE * CELL_PX;
 canvas.height = GRID_SIZE * CELL_PX;
 const ctx = canvas.getContext("2d");
 
+// Load background map
+const mapImg = new Image();
+mapImg.src = "GoldRush/Map.png"; // or "images/map.png"
+
 function draw() {
-  ctx.fillStyle = BG_COLOR;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Draw map background
+  if (mapImg.complete) {
+    ctx.drawImage(mapImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   // Cells
   for (let y = 0; y < GRID_SIZE; y++) {

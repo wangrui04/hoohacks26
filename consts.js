@@ -20,8 +20,8 @@ const GRID_SIZE = 32;
 const CELL_PX = 10;
 
 // --- Scene ---
-const NUM_MINES = 20;
-const NUM_RIVERS = 15;
+const NUM_MINES = 7;
+const NUM_RIVERS = 13;
 const PLAYER_ZONE_RADIUS = 10;
 
 function minePriceFn(distance, level) {
