@@ -15,12 +15,12 @@ const WIN_GOLD = 1000;
 const STARTING_MONEY = 50;
 
 // --- Grid ---
-const GRID_SIZE = 64;
-const CELL_PX = 10;
+const GRID_SIZE = 20;
+const CELL_PX = 30;
 
 // --- Scene ---
-const NUM_MINES = 20;
-const NUM_RIVERS = 15;
+const NUM_MINES = 7;
+const NUM_RIVERS = 13;
 const PLAYER_ZONE_RADIUS = 10;
 
 // --- Pricing ---
