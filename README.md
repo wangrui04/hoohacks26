@@ -13,7 +13,8 @@
 ## Rules of the Game:
 * Each player has to take turns making a move
 * Each player can only make one move during each turn
-* Each mine has a risk of collapsing of percentage, but with higher risk, you get a higher reward
+* Each mine has a risk of collapsing representaged as a percentage, but with higher risk, you get a higher reward
+* Each mine could collapse anytime in the game, resulting in a percentage loss of money
 * Rivers yield lower rewards than mines but they do not collapse
 * Players are not allowed to buy rivers consecutively and they must buy a mine before they buy the next river
 * A match ends when a player earns at least $500
