@@ -1,0 +1,16 @@
+# Core ML
+torch
+numpy
+
+# Environment
+gymnasium
+
+# Web GUI
+websockets
+
+# ONNX export (optional but recommended)
+# onnx
+
+# Optional utilities
+# tqdm
+# matplotlib
