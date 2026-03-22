@@ -22,8 +22,15 @@ body {
 #hud {
   display: flex;
   justify-content: space-between;
-  padding: 8px 4px;
+  align-items: center;
+  padding: 8px 6px;
   font-size: 14px;
+  gap: 16px;
+}
+
+#hud-text {
+  flex: 1;
+  text-align: left;
 }
 
 canvas {
@@ -33,81 +40,144 @@ canvas {
   image-rendering: pixelated;
 }
 
+/* ========================
+   GOLD RUSH / WILD WEST BUTTONS
+======================== */
+button.gold-btn,
+#rules-link,
+#btn-upgrade,
+#btn-skip,
+#btn-buy,
+#btn-cancel,
+#btn-close-rules,
+#btn-upgrade-cancel {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid #6e4812;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, #e6c26a 0%, #b8821f 52%, #8a5a12 100%);
+  color: #2b1700;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  padding: 8px 18px;
+  cursor: pointer;
+  text-shadow: 0 1px 0 rgba(255, 240, 190, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 245, 210, 0.55),
+    inset 0 -1px 0 rgba(80, 40, 0, 0.35),
+    0 2px 0 #4a2c07;
+  transition: transform 0.08s ease, filter 0.08s ease, box-shadow 0.08s ease;
+}
+
+button.gold-btn:hover,
+#rules-link:hover,
+#btn-upgrade:hover,
+#btn-skip:hover,
+#btn-buy:hover,
+#btn-cancel:hover,
+#btn-close-rules:hover,
+#btn-upgrade-cancel:hover {
+  filter: brightness(1.08);
+}
+
+button.gold-btn:active,
+#rules-link:active,
+#btn-upgrade:active,
+#btn-skip:active,
+#btn-buy:active,
+#btn-cancel:active,
+#btn-close-rules:active,
+#btn-upgrade-cancel:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 245, 210, 0.45),
+    inset 0 -1px 0 rgba(80, 40, 0, 0.25),
+    0 1px 0 #4a2c07;
+}
+
+#rules-link {
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+#action-bar {
+  margin-top: 10px;
+  text-align: center;
+}
+
+#btn-upgrade,
+#btn-skip {
+  margin: 0 6px;
+  min-width: 220px;
+  font-size: 16px;
+  padding: 12px 22px;
+}
+
 #buy-dialog {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   padding: 10px;
-  background: #222;
-  border: 1px solid #444;
+  background: linear-gradient(180deg, #24180d, #171008);
+  border: 1px solid #5f4318;
   margin-top: 8px;
-}
-
-#buy-dialog button {
-  padding: 4px 16px;
-  cursor: pointer;
-  font-family: monospace;
+  color: #ead8af;
 }
 
 #status {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 13px;
-  color: #aaa;
+  color: #cdb98f;
 }
-
-#action-bar {
-  margin-top: 8px;
-  text-align: center;
-}
-
-#action-bar button {
-  padding: 4px 16px;
-  cursor: pointer;
-  font-family: monospace;
-  background: #2a2a2a;
-  color: #eee;
-  border: 1px solid #555;
-}
-#action-bar button:hover { background: #3a3a3a; }
 
 #upgrade-dialog {
   margin-top: 8px;
-  padding: 10px;
-  background: #222;
-  border: 1px solid #444;
+  padding: 12px;
+  background: linear-gradient(180deg, #24180d, #171008);
+  border: 1px solid #5f4318;
   text-align: left;
+  color: #ead8af;
 }
+
 #upgrade-title {
   font-size: 13px;
-  margin-bottom: 6px;
-  color: #ccc;
+  margin-bottom: 8px;
+  color: #f2d16b;
 }
+
 #upgrade-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   max-height: 150px;
   overflow-y: auto;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
+
 .upgrade-option {
-  padding: 4px 8px;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  padding: 6px 10px;
+  background: #2a1d10;
+  border: 1px solid #694a18;
   cursor: pointer;
   font-family: monospace;
   font-size: 12px;
-  color: #eee;
+  color: #f0dfb0;
   text-align: left;
 }
-.upgrade-option:hover { background: #3a3a3a; border-color: #ffdd00; }
-.upgrade-option.collapsed { color: #555; cursor: default; text-decoration: line-through; }
 
-#btn-upgrade-cancel {
-  padding: 4px 16px;
-  cursor: pointer;
-  font-family: monospace;
+.upgrade-option:hover {
+  background: #382613;
+  border-color: #e0b84a;
+}
+
+.upgrade-option.collapsed {
+  color: #777;
+  cursor: default;
+  text-decoration: line-through;
 }
 
 #round-log {
@@ -122,7 +192,80 @@ canvas {
   color: #ccc;
   line-height: 1.7;
 }
-#round-log .round-header { color: #ffdd00; font-weight: bold; margin-top: 6px; }
-#round-log .pos { color: #4caf50; }
-#round-log .neg { color: #ff4444; }
-#round-log .neutral { color: #888; }
+
+#round-log .round-header {
+  color: #ffdd00;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+#round-log .pos {
+  color: #4caf50;
+}
+
+#round-log .neg {
+  color: #ff4444;
+}
+
+#round-log .neutral {
+  color: #888;
+}
+
+/* Rules overlay */
+#rules-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Rules modal */
+#rules-modal {
+  background: linear-gradient(180deg, #2a2218, #1a150e);
+  border: 3px solid #8b6914;
+  border-radius: 10px;
+  padding: 28px 36px;
+  max-width: 520px;
+  width: 90%;
+  color: #e8dcc8;
+  font-family: monospace;
+  text-align: center;
+  box-shadow:
+    0 0 30px rgba(139, 105, 20, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+#rules-modal h2 {
+  color: #ffdd00;
+  margin-bottom: 18px;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+#rules-content p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 6px;
+  color: #d4c8a8;
+}
+
+#rules-content strong {
+  color: #ffe066;
+}
+
+#rules-content hr {
+  border: none;
+  border-top: 1px solid #5a4a2a;
+  margin: 12px 0;
+}
+
+#btn-close-rules {
+  margin-top: 20px;
+  min-width: 140px;
+}

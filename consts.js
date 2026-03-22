@@ -25,8 +25,8 @@ function getRandomInt(min, max) {
 }
 
 // --- Scene ---
-const NUM_MINES = getRandomInt(5, 12);
-const NUM_RIVERS = getRandomInt(7, 10);
+const NUM_MINES = getRandomInt(10, 17);
+const NUM_RIVERS = getRandomInt(7, 13);
 const PLAYER_ZONE_RADIUS = 5;
 
 function minePriceFn(distance, level) {

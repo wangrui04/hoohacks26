@@ -10,25 +10,48 @@
   <div id="game-container">
     <div id="hud">
       <span id="hud-text"></span>
+      <button id="rules-link" class="gold-btn">Game Rules</button>
+    </div>
+
+    <!-- Rules Modal -->
+    <div id="rules-overlay" style="display: none">
+      <div id="rules-modal">
+        <h2>⛏ Gold Rush — Game Rules ⛏</h2>
+        <div id="rules-content">
+          <p>Each player takes turns making <strong>one move</strong> per turn.</p>
+          <p>Actions: <strong>Buy a mine</strong>, <strong>Buy a river</strong>, <strong>Upgrade an asset</strong>, or <strong>Skip turn</strong>.</p>
+          <hr>
+          <p>Mines have a <strong>risk of collapsing</strong> — higher risk means higher reward.</p>
+          <p>Rivers yield <strong>lower rewards</strong> than mines but they <strong>never collapse</strong>.</p>
+          <p>Players <strong>cannot buy rivers consecutively</strong> — you must buy a mine before your next river.</p>
+          <p>Each asset can be <strong>upgraded once</strong> to increase its reward, which costs a turn.</p>
+          <hr>
+          <p>A match ends when a player earns at least <strong>$500</strong>.</p>
+          <p>There are <strong>no limits</strong> to the number of turns per match.</p>
+          <p>A game consists of <strong>5 matches</strong>.</p>
+          <p>A player needs to win <strong>3 out of 5</strong> matches to win the game.</p>
+        </div>
+        <button id="btn-close-rules" class="gold-btn">✕ Close</button>
+      </div>
     </div>
 
     <canvas id="grid"></canvas>
 
     <div id="buy-dialog" style="display: none">
       <span id="buy-info"></span>
-      <button id="btn-buy">Buy</button>
-      <button id="btn-cancel">Cancel</button>
+      <button id="btn-buy" class="gold-btn">Buy</button>
+      <button id="btn-cancel" class="gold-btn">Cancel</button>
     </div>
 
     <div id="action-bar">
-      <button id="btn-upgrade">Upgrade an Asset</button>
-      <button id="btn-skip">Skip Turn</button>
+      <button id="btn-upgrade" class="gold-btn">Upgrade an Asset</button>
+      <button id="btn-skip" class="gold-btn">Skip Turn</button>
     </div>
 
     <div id="upgrade-dialog" style="display: none">
       <div id="upgrade-title">Select an asset to upgrade:</div>
       <div id="upgrade-list"></div>
-      <button id="btn-upgrade-cancel">Cancel</button>
+      <button id="btn-upgrade-cancel" class="gold-btn">Cancel</button>
     </div>
 
     <div id="status">Click a mine or river to buy it.</div>
@@ -46,5 +69,21 @@
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
   <script src="ai.js"></script>
   <script src="index.js"></script>
+
+  <script>
+    document.getElementById("rules-link").addEventListener("click", () => {
+      document.getElementById("rules-overlay").style.display = "flex";
+    });
+
+    document.getElementById("btn-close-rules").addEventListener("click", () => {
+      document.getElementById("rules-overlay").style.display = "none";
+    });
+
+    document.getElementById("rules-overlay").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.style.display = "none";
+      }
+    });
+  </script>
 </body>
 </html>
