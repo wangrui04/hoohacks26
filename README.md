@@ -16,3 +16,8 @@
 * There are no limits to the number of turns per match
 * A game consists of 5 matches
 * A player needs to win 3/5 matches to win the game
+
+## Authors:
+* Zach Risheq
+* Rui Wang
+* Darius Khani
