@@ -6,6 +6,11 @@ function buyItem(p, playerIdx, item, type) {
   const d = dist(p.x, p.y, item.x, item.y);
   const price = type === "mine" ? minePriceFn(d, item.level) : riverPriceFn(d, item.level);
 
+  if (type === "river" && p.mustBuyMineBeforeRiver) {
+    updateStatus(`Player ${playerIdx + 1} must buy a mine before buying another river.`);
+    return false;
+  }
+
   if (p.curr_money < price) {
     updateStatus(`Can't afford! Costs $${price}, you have $${p.curr_money}`);
     return false;
@@ -23,12 +28,14 @@ function buyItem(p, playerIdx, item, type) {
 
   if (type === "mine") {
     p.owned_mines.push(item);
+    p.mustBuyMineBeforeRiver = false;
     p.recordAction("buy mine");
     updateStatus(
       `Player ${playerIdx + 1} bought ${item.label} for $${price} — risk: ${(item.risk * 100).toFixed(0)}%`
     );
   } else {
     p.owned_rivers.push(item);
+    p.mustBuyMineBeforeRiver = true;
     p.recordAction("buy river");
     updateStatus(
       `Player ${playerIdx + 1} bought ${item.label} for $${price} — no risk`

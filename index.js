@@ -31,6 +31,7 @@ function resetForNewRound() {
     p.curr_money = STARTING_MONEY;
     p.owned_mines = [];
     p.owned_rivers = [];
+    p.mustBuyMineBeforeRiver = false;
   }
 
   // Reset turn state
@@ -245,6 +246,13 @@ canvas.addEventListener("click", (e) => {
   }
 
   const p = players[currentPlayerIndex];
+
+  if (result.type === "river" && p.mustBuyMineBeforeRiver) {
+    hideBuyDialog();
+    updateStatus(`Player ${currentPlayerIndex + 1} must buy a mine before buying another river.`);
+    return;
+  }
+
   const d = dist(p.x, p.y, result.item.x, result.item.y);
   const price =
     result.type === "mine" ? minePriceFn(d, result.item.level) : riverPriceFn(d, result.item.level);

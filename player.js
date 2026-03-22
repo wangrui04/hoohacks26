@@ -10,6 +10,7 @@ class Player {
     this.owned_mines = [];
     this.owned_rivers = [];
     this.previous_actions = [];
+    this.mustBuyMineBeforeRiver = false;
   }
 
   recordAction(action) {
