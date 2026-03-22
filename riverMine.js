@@ -7,7 +7,7 @@ class RiverMine {
     this.x = x;
     this.y = y;
     this.type = "riverMine";
-    this.color = "blue";
+    this.color = "purple";
     this.reward = reward;
     this.level = level;
     this.upgrades = 0;
