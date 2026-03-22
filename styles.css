@@ -126,3 +126,38 @@ canvas {
 #round-log .pos { color: #4caf50; }
 #round-log .neg { color: #ff4444; }
 #round-log .neutral { color: #888; }
+
+/* --- Gemini Prediction Panel --- */
+#prediction-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 280px;
+  background: #1a1a2e;
+  border: 1px solid #6c3fc5;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 100;
+  max-height: 400px;
+  overflow-y: auto;
+}
+#prediction-header {
+  color: #b388ff;
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #333;
+}
+#prediction-content {
+  color: #aaa;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+#prediction-content .pred-action { color: #ffdd00; font-weight: bold; }
+#prediction-content .pred-confidence { color: #4caf50; }
+#prediction-content .pred-reasoning { color: #999; }
+#prediction-content .pred-loading { color: #666; font-style: italic; }

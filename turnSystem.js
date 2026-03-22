@@ -16,6 +16,16 @@ function buyItem(p, playerIdx, item, type) {
     return false;
   }
 
+  // Record decision BEFORE mutating state
+  recordDecision(playerIdx, type === "mine" ? "buy_mine" : "buy_river", {
+    itemLabel: item.label,
+    itemX: item.x,
+    itemY: item.y,
+    itemLevel: item.level,
+    price: price,
+    distance: d,
+  });
+
   p.curr_money -= price;
   item.owner = p;
 
@@ -169,6 +179,7 @@ function nextTurn() {
         resetForNewRound();
         appendRoundLog(`<div class="round-header">══ Match ${currentRound} Begin ══</div>`);
         updateStatus("Click a mine or river to buy it.");
+        geminiPredictBeforeTurn();
         if (isAITurn()) {
           setTimeout(aiTakeTurn, 600);
         }
@@ -183,6 +194,9 @@ function nextTurn() {
   updateTurnLabel();
   updateStatus("Click a mine or river to buy it.");
 
+  // Fire Gemini prediction when it becomes the human's turn
+  geminiPredictBeforeTurn();
+
   if (isAITurn()) {
     setTimeout(aiTakeTurn, 600);
   }
@@ -193,6 +207,15 @@ function performUpgrade(playerIdx, item, type) {
     updateStatus(`Can't upgrade ${item.label} — already at max level!`);
     return;
   }
+
+  // Record decision BEFORE mutating state
+  recordDecision(playerIdx, type === "mine" ? "upgrade_mine" : "upgrade_river", {
+    itemLabel: item.label,
+    itemX: item.x,
+    itemY: item.y,
+    itemLevel: item.level,
+    currentReward: item.reward,
+  });
 
   const oldReward = item.reward;
   item.reward = Math.round(item.reward * 1.25);

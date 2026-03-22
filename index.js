@@ -297,6 +297,9 @@ btnSkip.addEventListener("click", () => {
   hideBuyDialog();
   hideUpgradeDialog();
 
+  // Record decision BEFORE mutating state
+  recordDecision(currentPlayerIndex, "skip", {});
+
   roundSelections[currentPlayerIndex] = {
     label: "Skipped",
     type: "skip",

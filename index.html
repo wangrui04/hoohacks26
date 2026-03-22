@@ -8,6 +8,11 @@
 </head>
 <body>
   <div id="game-container">
+    <div id="prediction-panel">
+      <div id="prediction-header">🔮 Gemini Prediction</div>
+      <div id="prediction-content">Waiting for first move...</div>
+    </div>
+
     <div id="hud">
       <span id="hud-text"></span>
     </div>
@@ -40,10 +45,14 @@
   <script src="player.js"></script>
   <script src="mine.js"></script>
   <script src="riverMine.js"></script>
+  <script src="replayBuffer.js"></script>
+  <script src="geminiPredictor.js"></script>
   <script src="ui.js"></script>
   <script src="renderer.js"></script>
   <script src="turnSystem.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <script src="config.js"></script>
+  <script src="geminiPredictor.js"></script>
   <script src="ai.js"></script>
   <script src="index.js"></script>
 </body>
