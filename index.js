@@ -16,7 +16,7 @@ let gameOver = false;
 let selectedItem = null;
 let selectedType = null;
 
-// --- Round (best-of-5) State ---
+// --- Round State - best of 5 ---
 let currentRound = 1;
 const roundWins = [0, 0]; // wins per player
 let matchOver = false;
@@ -101,8 +101,8 @@ function plotRiver(x, y, options = {}) {
 // Balanced distance filtering
 // ========================
 
-// Compute a "total accessible value" score for a player given a set of assets.
-// Value = sum of (reward / price) for each asset — higher means better opportunities.
+// Compute total accessible value score for player given set of assets.
+// Value = sum of (reward / price) for each asset - higher means better opportunities.
 function computePlayerValue(px, py, assets) {
   let total = 0;
   for (const a of assets) {
@@ -188,7 +188,6 @@ function generateScene() {
     }
   }
 
-  // Commit the best layout found
   clearGrid();
   mines.length = 0;
   riverMines.length = 0;
