@@ -5,7 +5,7 @@
 // --- Rendering ---
 const BG_COLOR = "#1a1a1a";
 const LINE_COLOR = "#2a2a2a";
-const PLAYER_COLORS = ["#ff4444", "#2e52f0"];
+const PLAYER_COLORS = ["#ff4444", "#9b64f5"];
 
 // --- Mine ---
 const MINE_COLOR = "#ffdd00";

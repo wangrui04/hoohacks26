@@ -7,12 +7,15 @@ const BORDER_PAD = 40;
 
 // Sprites are drawn slightly larger than the cell for overlap effect
 const SPRITE_SCALE = 1.7;
+const RIVER_SCALE = 1.0;
 const MINE_SCALE = 2.5;
 const SPRITE_PX = Math.round(CELL_PX * SPRITE_SCALE);
+const RIVER_PX = Math.round(CELL_PX * RIVER_SCALE);
 const MINE_PX = Math.round(CELL_PX * MINE_SCALE);
 
-const SPRITE_OFFSET = Math.round((SPRITE_PX - CELL_PX) / 2); // center larger normal sprites
-const MINE_OFFSET = Math.round((MINE_PX - CELL_PX) / 2);     // center larger mine sprites
+const SPRITE_OFFSET = Math.round((SPRITE_PX - CELL_PX) / 2); 
+const RIVER_OFFSET = Math.round((RIVER_PX - CELL_PX) / 2);    
+const MINE_OFFSET = Math.round((MINE_PX - CELL_PX) / 2);     
 
 const canvas = document.getElementById("grid");
 canvas.width = GRID_SIZE * CELL_PX + BORDER_PAD * 2;
@@ -36,11 +39,11 @@ const sprites = {
   mineClaimed:    loadImg("Images/MineClaimed.png"),
   mineUpgraded:   loadImg("Images/MineUpgraded.png"),
   mineCollapsed:  loadImg("Images/MineCollapsed.png"),
-  river:          loadImg("Images/River.png"),
+  river:          loadImg("Images/River2.png"),
   riverClaimed:   loadImg("Images/RiverClaimed.png"),
   riverUpgraded:  loadImg("Images/RiverUpgraded.png"),
   redSettlement:  loadImg("Images/RedSettlement.png"),
-  blueSettlement: loadImg("Images/BlueSettlement.png"),
+  purpleSettlement: loadImg("Images/PurpleSettlement.png"),
 };
 
 // Helper: pixel position of a grid cell (accounting for border offset)
@@ -73,6 +76,20 @@ function drawMineSprite(img, gx, gy) {
     );
   }
 }
+
+// Helper: draw a river sprite centered on a cell with its own size
+function drawRiverSprite(img, gx, gy) {
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(
+      img,
+      cellPx(gx) - RIVER_OFFSET,
+      cellPx(gy) - RIVER_OFFSET,
+      RIVER_PX,
+      RIVER_PX
+    );
+  }
+}
+
 
 // ========================
 // Sprite selection helpers
@@ -125,7 +142,7 @@ function draw() {
 
   // 4) River sprites
   for (const rm of riverMines) {
-    drawSprite(getRiverSprite(rm), rm.x, rm.y);
+    drawRiverSprite(getRiverSprite(rm), rm.x, rm.y);
   }
 
   // 5) Player settlements
@@ -135,7 +152,7 @@ function draw() {
 
   ctx.fillStyle = PLAYER_COLORS[1];
   ctx.fillRect(cellPx(player2.x), cellPx(player2.y), CELL_PX, CELL_PX);
-  drawSprite(sprites.blueSettlement, player2.x, player2.y);
+  drawSprite(sprites.purpleSettlement, player2.x, player2.y);
 
   // 6) Highlight selected item
   if (selectedItem) {
