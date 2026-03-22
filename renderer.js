@@ -1,5 +1,5 @@
 // ========================
-// renderer.js — Canvas drawing (read-only against game state)
+// renderer.js — Canvas drawing 
 // ========================
 
 // Border extends beyond the grid on all sides
@@ -182,7 +182,7 @@ function draw() {
     ctx.stroke();
   }
 
-  // 8) Map border (covers full canvas, sits on top of everything)
+  // 8) Map border 
   if (sprites.mapBorder.complete && sprites.mapBorder.naturalWidth > 0) {
     ctx.drawImage(sprites.mapBorder, 0, 0, canvas.width, canvas.height);
   }
