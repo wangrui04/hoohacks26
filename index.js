@@ -328,3 +328,8 @@ function gameLoop(timestamp) {
 generateScene();
 updateHUD();
 requestAnimationFrame(gameLoop);
+
+
+if (isAITurn()) {
+  setTimeout(aiTakeTurn, 1000);
+}

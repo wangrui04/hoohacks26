@@ -169,6 +169,9 @@ function nextTurn() {
         resetForNewRound();
         appendRoundLog(`<div class="round-header">══ Match ${currentRound} Begin ══</div>`);
         updateStatus("Click a mine or river to buy it.");
+        if (isAITurn()) {
+          setTimeout(aiTakeTurn, 600);
+        }
       }, 2000);
       return;
     }
@@ -179,6 +182,10 @@ function nextTurn() {
 
   updateTurnLabel();
   updateStatus("Click a mine or river to buy it.");
+
+  if (isAITurn()) {
+    setTimeout(aiTakeTurn, 600);
+  }
 }
 
 function performUpgrade(playerIdx, item, type) {
