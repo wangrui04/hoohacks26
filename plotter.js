@@ -1,8 +1,7 @@
+// ========================
+// plotter.js — Takes care of drawings on the canvas based on game state
+// ========================
 
-
-
-
-// --- Rendering ---
 
 function draw() {
   ctx.fillStyle = BG_COLOR;
