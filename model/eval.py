@@ -1,14 +1,12 @@
 """
 eval_gui.py — Evaluate trained DQN agent with a live browser GUI
 
-Runs a local web server + WebSocket. The browser shows the 20x20 grid,
-player money, turn info, and the agent's action each step.
-
 Usage:
     python eval_gui.py                          # both players = AI
     python eval_gui.py --human 0                # you play as P1, AI is P2
     python eval_gui.py --human 1                # AI is P1, you play as P2
-    python eval_gui.py --checkpoint dqn_goldrush_25000.pt
+    python eval_gui.py --checkpoint dqn_goldrush_10000.pt
+    python eval_gui.py --speed 1.0              # slower AI moves
 
 Requirements:
     pip install websockets
@@ -26,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn as nn
 
 from gold_rush_env import GoldRushEnv, MAX_ASSETS, GRID_SIZE, WIN_GOLD
 
@@ -36,32 +35,46 @@ except ImportError:
     exit(1)
 
 # ============================================================
-# Load model (same architecture as train_dqn.py)
+# Network — must match train_dqn.py exactly
 # ============================================================
 N_ACTIONS = 1 + 2 * MAX_ASSETS
 GRID_CHANNELS = 6
 SCALAR_DIM = 8
+ASSET_FEATURES = 14
 
-class DQN(torch.nn.Module):
+
+class DQN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv = torch.nn.Sequential(
-            torch.nn.Conv2d(GRID_CHANNELS, 32, kernel_size=3, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.AdaptiveAvgPool2d(4),
+        self.conv = nn.Sequential(
+            nn.Conv2d(GRID_CHANNELS, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d(4),
         )
-        self.fc = torch.nn.Sequential(
-            torch.nn.Linear(64 * 4 * 4 + SCALAR_DIM, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, N_ACTIONS),
+        self.asset_mlp = nn.Sequential(
+            nn.Linear(ASSET_FEATURES, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+        )
+        asset_pool_dim = 64
+        combined_dim = 64 * 4 * 4 + asset_pool_dim + SCALAR_DIM
+        self.fc = nn.Sequential(
+            nn.Linear(combined_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, N_ACTIONS),
         )
 
-    def forward(self, grid, scalars):
-        x = self.conv(grid)
-        x = x.flatten(1)
-        x = torch.cat([x, scalars], dim=1)
+    def forward(self, grid, scalars, asset_table):
+        g = self.conv(grid).flatten(1)
+        B, N, F = asset_table.shape
+        a = self.asset_mlp(asset_table)
+        a_max = a.max(dim=1).values
+        a_mean = a.mean(dim=1)
+        a_pool = torch.cat([a_max, a_mean], dim=1)
+        x = torch.cat([g, a_pool, scalars], dim=1)
         return self.fc(x)
 
 
@@ -77,7 +90,8 @@ def ai_select_action(model, obs):
     with torch.no_grad():
         g = torch.tensor(obs["grid"], dtype=torch.float32).unsqueeze(0)
         s = torch.tensor(obs["scalars"], dtype=torch.float32).unsqueeze(0)
-        q = model(g, s).squeeze(0).numpy()
+        at = torch.tensor(obs["asset_table"], dtype=torch.float32).unsqueeze(0)
+        q = model(g, s, at).squeeze(0).numpy()
         q[mask == 0] = -np.inf
         return int(np.argmax(q))
 
@@ -105,7 +119,8 @@ def build_state_msg(env, action_info=None, game_over_info=None):
         "type": "state",
         "grid_size": GRID_SIZE,
         "players": [
-            {"x": p.x, "y": p.y, "money": p.money}
+            {"x": p.x, "y": p.y, "money": p.money,
+             "must_buy_mine": p.must_buy_mine_before_river}
             for p in env.players
         ],
         "assets": assets,
@@ -127,14 +142,17 @@ def action_to_label(action, env):
         idx = action - 1
         if idx < len(env.all_assets):
             a = env.all_assets[idx]
-            return f"Buy {a.asset_type} #{idx} (Lv{a.level}) at ({a.x},{a.y})"
-        return f"Buy asset #{idx} (invalid)"
+            price = env._price_for(env.players[env.current_player], a)
+            risk_str = f", risk:{a.risk:.0%}" if a.asset_type == "mine" else ""
+            return f"Buy {a.asset_type} #{idx} Lv{a.level} at ({a.x},{a.y}) ${price}{risk_str}"
+        return f"Buy #{idx} (invalid)"
     else:
         idx = action - MAX_ASSETS - 1
         if idx < len(env.all_assets):
             a = env.all_assets[idx]
-            return f"Upgrade {a.asset_type} #{idx} (Lv{a.level})"
-        return f"Upgrade asset #{idx} (invalid)"
+            new_r = round(a.reward * 1.25)
+            return f"Upgrade {a.asset_type} #{idx} Lv{a.level} (${a.reward}->${new_r})"
+        return f"Upgrade #{idx} (invalid)"
 
 
 # ============================================================
@@ -144,7 +162,6 @@ async def game_session(websocket, model, human_player, speed):
     env = GoldRushEnv()
     obs, info = env.reset()
 
-    # Send initial state
     await websocket.send(build_state_msg(env))
 
     while not env.done:
@@ -152,7 +169,6 @@ async def game_session(websocket, model, human_player, speed):
         is_human = (human_player is not None and current == human_player)
 
         if is_human:
-            # Tell GUI it's human's turn, send valid actions
             mask = obs["action_mask"]
             valid = []
             for a_idx in range(N_ACTIONS):
@@ -167,12 +183,10 @@ async def game_session(websocket, model, human_player, speed):
                 "current_player": current,
             }))
 
-            # Wait for human action
             msg = await websocket.recv()
             data = json.loads(msg)
             action = data.get("action", 0)
         else:
-            # AI picks
             await asyncio.sleep(speed)
             action = ai_select_action(model, obs)
 
@@ -196,7 +210,6 @@ async def game_session(websocket, model, human_player, speed):
 
         await websocket.send(build_state_msg(env, action_info, game_over_info))
 
-    # Wait for restart or close
     try:
         msg = await websocket.recv()
         data = json.loads(msg)
@@ -207,7 +220,7 @@ async def game_session(websocket, model, human_player, speed):
 
 
 # ============================================================
-# HTML GUI (served inline)
+# HTML GUI
 # ============================================================
 GUI_HTML = r"""<!DOCTYPE html>
 <html lang="en">
@@ -242,9 +255,11 @@ GUI_HTML = r"""<!DOCTYPE html>
 
   #hud {
     display: flex;
-    gap: 30px;
+    gap: 20px;
     margin-bottom: 12px;
     font-size: 0.85rem;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .hud-item {
@@ -255,8 +270,9 @@ GUI_HTML = r"""<!DOCTYPE html>
   }
 
   .hud-item.p1 { border-color: #ff4444; color: #ff6666; }
-  .hud-item.p2 { border-color: #ef44ff; color: #ef66ff; }
+  .hud-item.p2 { border-color: #2e52f0; color: #6b8aff; }
   .hud-item .money { font-weight: 700; font-size: 1.1rem; }
+  .hud-item .flag { color: #f84; font-size: 0.7rem; }
 
   #canvas-wrap {
     position: relative;
@@ -266,14 +282,11 @@ GUI_HTML = r"""<!DOCTYPE html>
     box-shadow: 0 0 40px rgba(0,0,0,0.5);
   }
 
-  canvas {
-    display: block;
-    cursor: crosshair;
-  }
+  canvas { display: block; cursor: crosshair; }
 
   #log {
     width: 602px;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
     margin-top: 12px;
     padding: 10px;
@@ -285,14 +298,15 @@ GUI_HTML = r"""<!DOCTYPE html>
   }
 
   #log .entry { padding: 2px 0; border-bottom: 1px solid #1a1a1a; }
-  #log .entry.ai { color: #888; }
+  #log .entry.ai { color: #999; }
   #log .entry.human { color: #8f8; }
+  #log .entry.income { color: #aaa; font-style: italic; }
   #log .entry.win { color: #ffdd00; font-weight: 700; font-size: 0.9rem; }
-  #log .entry .p1 { color: #ff6666; }
-  #log .entry .p2 { color: #ef66ff; }
-  #log .entry .buy { color: #4a9; }
-  #log .entry .upgrade { color: #49f; }
-  #log .entry .skip { color: #666; }
+  .p1c { color: #ff6666; }
+  .p2c { color: #6b8aff; }
+  .buy { color: #4a9; }
+  .upgrade { color: #49f; }
+  .skip { color: #666; }
 
   #actions {
     width: 602px;
@@ -300,7 +314,7 @@ GUI_HTML = r"""<!DOCTYPE html>
     display: none;
     flex-direction: column;
     gap: 4px;
-    max-height: 180px;
+    max-height: 200px;
     overflow-y: auto;
     padding: 8px;
     background: #0f1a0f;
@@ -321,10 +335,7 @@ GUI_HTML = r"""<!DOCTYPE html>
     transition: background 0.15s;
   }
 
-  #actions button:hover {
-    background: #2a4a2a;
-    border-color: #4a8a4a;
-  }
+  #actions button:hover { background: #2a4a2a; border-color: #4a8a4a; }
 
   #turn-indicator {
     margin-top: 8px;
@@ -357,8 +368,8 @@ GUI_HTML = r"""<!DOCTYPE html>
 
 <div id="hud">
   <div class="hud-item">Turn <span id="turn-num">1</span></div>
-  <div class="hud-item p1">P1 $<span id="p1-money" class="money">50</span></div>
-  <div class="hud-item p2">P2 $<span id="p2-money" class="money">50</span></div>
+  <div class="hud-item p1">P1 $<span id="p1-money" class="money">50</span> <span id="p1-flag" class="flag"></span></div>
+  <div class="hud-item p2">P2 $<span id="p2-money" class="money">50</span> <span id="p2-flag" class="flag"></span></div>
 </div>
 
 <div id="canvas-wrap">
@@ -375,7 +386,7 @@ const CELL = 30;
 const SIZE = 20;
 const canvas = document.getElementById('grid');
 const ctx = canvas.getContext('2d');
-const log = document.getElementById('log');
+const logEl = document.getElementById('log');
 const actionsDiv = document.getElementById('actions');
 const turnInd = document.getElementById('turn-indicator');
 const restartBtn = document.getElementById('restart-btn');
@@ -384,12 +395,12 @@ const COLORS = {
   bg: '#1a1a1a',
   grid: '#222',
   mine: '#ffdd00',
-  river: '#4488ff',
+  river: '#66ea5c',
   p1: '#ff4444',
-  p2: '#ef44ff',
+  p2: '#2e52f0',
   collapsed: '#333',
-  owned1: 'rgba(255,68,68,0.6)',
-  owned2: 'rgba(239,68,255,0.6)',
+  owned1: 'rgba(255,68,68,0.5)',
+  owned2: 'rgba(46,82,240,0.5)',
 };
 
 let state = null;
@@ -397,7 +408,7 @@ let ws = null;
 
 function connect() {
   ws = new WebSocket('ws://localhost:8766');
-  ws.onopen = () => { turnInd.textContent = 'Connected — waiting for game...'; };
+  ws.onopen = () => { turnInd.textContent = 'Connected — game starting...'; };
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
   ws.onclose = () => { turnInd.textContent = 'Disconnected'; };
 }
@@ -411,14 +422,14 @@ function handleMessage(msg) {
     if (msg.last_action) logAction(msg.last_action);
     if (msg.game_over) {
       const w = msg.game_over.winner;
-      const label = w === -1 ? 'TIE!' : `Player ${w + 1} wins!`;
-      logEntry(label + ` (P1: $${msg.game_over.money[0]}, P2: $${msg.game_over.money[1]})`, 'win');
+      const label = w === -1 ? 'TIE!' : 'Player ' + (w + 1) + ' wins!';
+      logEntry(label + ' (P1: $' + msg.game_over.money[0] + ', P2: $' + msg.game_over.money[1] + ')', 'win');
       turnInd.textContent = label;
       restartBtn.style.display = 'block';
       actionsDiv.style.display = 'none';
     }
   } else if (msg.type === 'your_turn') {
-    turnInd.textContent = `Your turn (Player ${msg.current_player + 1}) — pick an action:`;
+    turnInd.textContent = 'Your turn (Player ' + (msg.current_player + 1) + '):';
     showActions(msg.valid_actions);
   }
 }
@@ -439,19 +450,19 @@ function showActions(valid) {
 }
 
 function logAction(a) {
-  const pClass = a.player === 0 ? 'p1' : 'p2';
-  const tClass = a.action_type || 'skip';
-  const aiLabel = a.is_ai ? ' [AI]' : ' [YOU]';
+  const pc = a.player === 0 ? 'p1c' : 'p2c';
+  const tc = a.action_type || 'skip';
+  const who = a.is_ai ? ' [AI]' : ' [YOU]';
   const cls = a.is_ai ? 'ai' : 'human';
-  logEntry(`<span class="${pClass}">P${a.player + 1}</span>${aiLabel}: <span class="${tClass}">${a.label}</span>`, cls);
+  logEntry('<span class="' + pc + '">P' + (a.player+1) + '</span>' + who + ': <span class="' + tc + '">' + a.label + '</span>', cls);
 }
 
-function logEntry(html, cls = '') {
+function logEntry(html, cls) {
   const div = document.createElement('div');
-  div.className = 'entry ' + cls;
+  div.className = 'entry ' + (cls || '');
   div.innerHTML = html;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
 function updateHUD() {
@@ -459,9 +470,10 @@ function updateHUD() {
   document.getElementById('turn-num').textContent = state.turn_number;
   document.getElementById('p1-money').textContent = state.players[0].money;
   document.getElementById('p2-money').textContent = state.players[1].money;
+  document.getElementById('p1-flag').textContent = state.players[0].must_buy_mine ? '(must buy mine)' : '';
+  document.getElementById('p2-flag').textContent = state.players[1].must_buy_mine ? '(must buy mine)' : '';
   if (!state.done) {
-    const cp = state.current_player;
-    turnInd.textContent = `Player ${cp + 1}'s turn...`;
+    turnInd.textContent = 'Player ' + (state.current_player + 1) + "'s turn...";
   }
 }
 
@@ -469,64 +481,67 @@ function render() {
   if (!state) return;
   const s = state;
 
-  // Background
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, 600, 600);
 
-  // Grid lines
+  // Grid
   ctx.strokeStyle = COLORS.grid;
   ctx.lineWidth = 0.5;
   for (let i = 0; i <= SIZE; i++) {
-    ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, 600); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(600, i * CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,600); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(600,i*CELL); ctx.stroke();
   }
 
   // Assets
   for (const a of s.assets) {
-    const x = a.x * CELL, y = a.y * CELL;
+    const x = a.x*CELL, y = a.y*CELL;
 
     if (a.collapsed) {
       ctx.fillStyle = COLORS.collapsed;
-      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1;
-      // X mark
-      ctx.beginPath(); ctx.moveTo(x + 6, y + 6); ctx.lineTo(x + CELL - 6, y + CELL - 6); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + CELL - 6, y + 6); ctx.lineTo(x + 6, y + CELL - 6); ctx.stroke();
+      ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x+6,y+6); ctx.lineTo(x+CELL-6,y+CELL-6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+CELL-6,y+6); ctx.lineTo(x+6,y+CELL-6); ctx.stroke();
       continue;
     }
 
     if (a.owner !== null) {
       ctx.fillStyle = a.owner === 0 ? COLORS.owned1 : COLORS.owned2;
-      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
-      // Border
+      ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
       ctx.strokeStyle = a.owner === 0 ? COLORS.p1 : COLORS.p2;
       ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.strokeRect(x+1, y+1, CELL-2, CELL-2);
+      // Upgrade indicator
+      if (a.upgrades > 0) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 8px JetBrains Mono';
+        ctx.textAlign = 'right';
+        ctx.fillText('+', x+CELL-3, y+10);
+      }
     } else {
       ctx.fillStyle = a.type === 'mine' ? COLORS.mine : COLORS.river;
-      ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+      ctx.fillRect(x+2, y+2, CELL-4, CELL-4);
     }
 
-    // Level indicator
+    // Level
     ctx.fillStyle = '#fff';
     ctx.font = '10px JetBrains Mono';
     ctx.textAlign = 'center';
-    ctx.fillText(a.level, x + CELL / 2, y + CELL / 2 + 3);
+    ctx.fillText(a.level, x+CELL/2, y+CELL/2+3);
   }
 
   // Players
   for (let i = 0; i < 2; i++) {
     const p = s.players[i];
-    const x = p.x * CELL, y = p.y * CELL;
+    const x = p.x*CELL, y = p.y*CELL;
     ctx.fillStyle = i === 0 ? COLORS.p1 : COLORS.p2;
     ctx.beginPath();
-    ctx.arc(x + CELL / 2, y + CELL / 2, CELL / 3, 0, Math.PI * 2);
+    ctx.arc(x+CELL/2, y+CELL/2, CELL/3, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px JetBrains Mono';
     ctx.textAlign = 'center';
-    ctx.fillText(`P${i + 1}`, x + CELL / 2, y + CELL / 2 + 4);
+    ctx.fillText('P'+(i+1), x+CELL/2, y+CELL/2+4);
   }
 
   // Current player highlight
@@ -534,8 +549,8 @@ function render() {
     const cp = s.players[s.current_player];
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(cp.x * CELL - 2, cp.y * CELL - 2, CELL + 4, CELL + 4);
+    ctx.setLineDash([4,4]);
+    ctx.strokeRect(cp.x*CELL-2, cp.y*CELL-2, CELL+4, CELL+4);
     ctx.setLineDash([]);
   }
 }
@@ -543,7 +558,7 @@ function render() {
 restartBtn.onclick = () => {
   ws.send(JSON.stringify({ restart: true }));
   restartBtn.style.display = 'none';
-  log.innerHTML = '';
+  logEl.innerHTML = '';
   turnInd.textContent = 'Starting new game...';
 };
 
@@ -558,19 +573,13 @@ connect();
 # ============================================================
 def main():
     parser = argparse.ArgumentParser(description="Gold Rush DQN Eval GUI")
-    parser.add_argument("--checkpoint", type=str, default="dqn_goldrush_final.pt",
-                        help="Path to model checkpoint")
-    parser.add_argument("--human", type=int, default=None, choices=[0, 1],
-                        help="Which player is human (0 or 1). Omit for AI vs AI.")
-    parser.add_argument("--speed", type=float, default=0.6,
-                        help="Delay between AI moves in seconds (default 0.6)")
-    parser.add_argument("--port", type=int, default=8765,
-                        help="HTTP server port (default 8765)")
-    parser.add_argument("--ws-port", type=int, default=8766,
-                        help="WebSocket port (default 8766)")
+    parser.add_argument("--checkpoint", type=str, default="dqn_goldrush_final.pt")
+    parser.add_argument("--human", type=int, default=None, choices=[0, 1])
+    parser.add_argument("--speed", type=float, default=0.6)
+    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--ws-port", type=int, default=8766)
     args = parser.parse_args()
 
-    # Load model
     if not os.path.exists(args.checkpoint):
         print(f"Checkpoint not found: {args.checkpoint}")
         print("Train first with: python train_dqn.py")
@@ -580,27 +589,23 @@ def main():
     model = load_model(args.checkpoint)
     print("Model loaded.")
 
-    # Write GUI HTML to a temp file
     gui_dir = Path("eval_gui_static")
     gui_dir.mkdir(exist_ok=True)
     gui_path = gui_dir / "index.html"
 
-    # Inject the correct WS port
     html = GUI_HTML.replace("ws://localhost:8766", f"ws://localhost:{args.ws_port}")
     gui_path.write_text(html)
 
-    # Start HTTP server in background
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *a, **kw):
             super().__init__(*a, directory=str(gui_dir), **kw)
         def log_message(self, *a):
-            pass  # suppress logs
+            pass
 
     http = HTTPServer(("localhost", args.port), Handler)
     threading.Thread(target=http.serve_forever, daemon=True).start()
     print(f"GUI: http://localhost:{args.port}")
 
-    # Start WebSocket server
     async def handler(websocket):
         await game_session(websocket, model, args.human, args.speed)
 
@@ -611,7 +616,7 @@ def main():
             print(f"Mode: {mode} | Speed: {args.speed}s")
             print()
             webbrowser.open(f"http://localhost:{args.port}")
-            await asyncio.Future()  # run forever
+            await asyncio.Future()
 
     asyncio.run(run_ws())
 
