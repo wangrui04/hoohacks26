@@ -9,7 +9,7 @@
 <body>
   <div id="game-container">
     <div id="prediction-panel">
-      <div id="prediction-header">🔮 Gemini Prediction</div>
+      <div id="prediction-header"> Mind-Reading Prediction</div>
       <div id="prediction-content">Waiting for first move...</div>
     </div>
 
@@ -73,17 +73,10 @@
   <script src="ui.js"></script>
   <script src="renderer.js"></script>
   <script src="turnSystem.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-    <script>
-    // Fix SIGILL: disable SIMD/threading before ONNX Runtime loads
-    window.ort = window.ort || {};
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
   <script>
     ort.env.wasm.numThreads = 1;
-    ort.env.wasm.simd = false;
   </script>
-  <script src="ai.js"></script>
   <script src="ai.js"></script>
   <script src="index.js"></script>
 

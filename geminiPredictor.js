@@ -15,7 +15,7 @@
 
 // --- Config ---
 let GEMINI_API_KEY = "";                       // SET THIS or paste in console
-const GEMINI_MODEL = "gemini-2.5-flash";       // fast + free-tier friendly
+const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";      // fast + free-tier friendly
 // Other options: "gemini-2.5-pro", "gemini-3.1-pro-preview", "gemini-3-flash-preview"
 
 const GEMINI_ENDPOINT =
@@ -60,84 +60,42 @@ function showPredictionResult(raw) {
 // ========================
 
 function buildGeminiPrompt() {
-  const scene = snapshotState();
-
-  // ---- Game rules summary ----
-  const rules = `
-You are analyzing a 2-player strategy board game called "Gold Rush".
-
-RULES:
-- Two players start on opposite corners of a 20×20 grid with $${STARTING_MONEY} each.
-- The goal is to reach $${WIN_GOLD} first. The match is best-of-${TOTAL_ROUNDS}.
-- Each turn a player can: BUY an unclaimed mine or river, UPGRADE an owned asset, or SKIP.
-- Mines: higher reward but have a collapse risk (cave-in destroys the mine and costs money).
-  Price = (8 + level*6) * e^(0.03 * manhattan_distance). Income ≈ reward * (1 + e^risk).
-- Rivers: lower reward, zero risk, but after buying a river the player MUST buy a mine next.
-  Price = (4 + level*4) * e^(0.03 * manhattan_distance). Income = reward per turn.
-- Each asset can be upgraded once (+25% reward, free action).
-- After both players act, income is collected and mines may collapse.
-- Player 1 (index 0) is the HUMAN. Player 2 (index 1) is the AI opponent.
-`;
-
-  // ---- Current scene ----
-  const sceneJSON = JSON.stringify(scene, null, 2);
-
-  // ---- Replay buffer (all past human decisions) ----
-  const humanDecisions = replayBuffer.filter(e => e.action.playerIdx === 0);
-  // Trim to last 30 decisions to stay within context limits
-  const recentDecisions = humanDecisions.slice(-30);
-  const bufferJSON = JSON.stringify(recentDecisions, null, 2);
-
-  // ---- Available actions right now ----
   const p = players[0];
-  const availableActions = [];
-  availableActions.push("SKIP");
+  const p2 = players[1];
 
+  // Compact history
+  const recent = replayBuffer.slice(-15);
+  const history = recent.map(e =>
+    `T${e.turn}:${e.action}${e.label ? " " + e.label : ""} $${e.price}`
+  ).join(" | ");
+
+  // Compact available actions with distances to both players
+  const actions = ["SKIP"];
   const allAssets = [...mines, ...riverMines];
   for (const asset of allAssets) {
     const isMine = mines.includes(asset);
-    if (asset.owner === null) {
-      if (isMine && asset.collapsed) continue;
+    if (asset.owner === null && !(isMine && asset.collapsed)) {
       if (!isMine && p.mustBuyMineBeforeRiver) continue;
-      const d = dist(p.x, p.y, asset.x, asset.y);
-      const price = isMine
-        ? minePriceFn(d, asset.level)
-        : riverPriceFn(d, asset.level);
+      const d1 = dist(p.x, p.y, asset.x, asset.y);
+      const d2 = dist(p2.x, p2.y, asset.x, asset.y);
+      const price = isMine ? minePriceFn(d1, asset.level) : riverPriceFn(d1, asset.level);
       if (p.curr_money >= price) {
-        availableActions.push(
-          `BUY ${asset.label} (${isMine ? "mine" : "river"}, level ${asset.level}, ` +
-          `reward $${asset.reward}, dist ${d}, price $${price}` +
-          `${isMine ? `, risk ${(asset.risk * 100).toFixed(0)}%` : ", no risk"})`
-        );
+        actions.push(`BUY ${asset.label} lv${asset.level} $${price} distance from P1=${d1} distance from dP2=${d2}${isMine ? " r" + Math.round(asset.risk * 100) + "%" : ""}`);
       }
     }
     if (asset.owner === p && asset.upgrades < 1 && !(isMine && asset.collapsed)) {
-      availableActions.push(
-        `UPGRADE ${asset.label} (${isMine ? "mine" : "river"}, reward $${asset.reward} → $${Math.round(asset.reward * 1.25)})`
-      );
+      actions.push(`UPG ${asset.label} $${asset.reward}→$${Math.round(asset.reward * 1.25)}`);
     }
   }
 
-  const actionsText = availableActions.join("\n  ");
-
-  // ---- Final prompt ----
-  return `${rules}
-
-CURRENT GAME STATE (Turn ${scene.turnNumber}, Round ${scene.currentRound}):
-${sceneJSON}
-
-AVAILABLE ACTIONS FOR PLAYER 1 (human) THIS TURN:
-  ${actionsText}
-
-PLAYER 1'S DECISION HISTORY (most recent ${recentDecisions.length} decisions):
-${bufferJSON}
-
-TASK:
-Predict what Player 1 will do THIS turn based on their past behavior and the current state.
-
-Respond with EXACTLY two lines and nothing else:
-ACTION: (one of the available actions above, verbatim)
-CONFIDENCE: (low / medium / high)`;
+  return `You are predicting Player 1's next move in Gold Rush, a 2P grid strategy game. Goal: reach $${WIN_GOLD} first. Mines=high reward+risk. Rivers=low reward+safe but must buy mine after. Upgrade=+25% reward, free action.
+P1(you):$${p.curr_money} owns ${p.owned_mines.length}mines/${p.owned_rivers.length}rivers${p.mustBuyMineBeforeRiver ? " MUST-BUY-MINE-NEXT" : ""} | P2:$${p2.curr_money} owns ${p2.owned_mines.length}m/${p2.owned_rivers.length}r | Turn ${turnNumber} Round ${currentRound}
+History: ${history}
+Actions: ${actions.join(" | ")}
+Predict P1's action. Closer assets (lower dP1) are cheaper. Consider what P2 might contest (low dP2).
+Reply EXACTLY:
+ACTION: (verbatim from above)
+CONFIDENCE: low/medium/high`;
 }
 
 // ========================
@@ -167,8 +125,7 @@ async function queryGemini() {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 256,
-          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 80,
         },
       }),
     });

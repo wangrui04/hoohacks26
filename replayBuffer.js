@@ -83,14 +83,14 @@ function snapshotState() {
  * @param {object} [details]  — extra info about the action (item label, price, etc.)
  */
 function recordDecision(playerIdx, actionType, details = {}) {
+  const p = players[playerIdx];
   replayBuffer.push({
-    id: replayBuffer.length,
-    timestamp: Date.now(),
-    state: snapshotState(),
-    action: {
-      playerIdx: playerIdx,
-      type: actionType,
-      ...details,
-    },
+    turn: turnNumber,
+    round: currentRound,
+    money: p.curr_money,
+    action: actionType,
+    label: details.itemLabel || null,
+    price: details.price || 0,
+    dist: details.distance || 0,
   });
 }
