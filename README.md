@@ -1,5 +1,9 @@
 # HOOHACKS 2026 - Gold Rush
 
+## Overview
+* This game was inspired by the theme, Wild West, and the game Catan.
+* AI was used in the game to predict the next move of the player and act accordingly. 
+
 ## Actions in the Game:
 1. Select Mine - Purchase the mine
 2. Select River - Purchase the river mine
