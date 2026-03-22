@@ -21,6 +21,7 @@
 ```txt
 python3 -m http.server 8000
 ```
+[Play the game](http://localhost:8000/index.html)
 
 ## Authors:
 * Zach Risheq
