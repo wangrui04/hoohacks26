@@ -517,6 +517,7 @@ class TestObservation(unittest.TestCase):
         obs, info = env.reset(seed=42)
         self.assertEqual(obs["grid"].shape, (6, GRID_SIZE, GRID_SIZE))
         self.assertEqual(obs["scalars"].shape, (8,))
+        self.assertEqual(obs["asset_table"].shape, (MAX_ASSETS, 14))
         self.assertEqual(obs["action_mask"].shape, (1 + 2 * MAX_ASSETS,))
 
     def test_player_positions_in_grid(self):

@@ -119,9 +119,19 @@ class GoldRushEnv(gym.Env):
 
         self.n_actions = 1 + 2 * MAX_ASSETS
         self.action_space = spaces.Discrete(self.n_actions)
+
+        # Per-asset feature count:
+        #   is_mine, is_river, level/3, reward/30, risk,
+        #   collapsed, owner_me, owner_opp, owner_none,
+        #   upgrades, dist_to_me/38, dist_to_opp/38,
+        #   price_for_me/200, affordable
+        ASSET_FEATURES = 14
+        self.asset_features = ASSET_FEATURES
+
         self.observation_space = spaces.Dict({
             "grid": spaces.Box(0.0, 1.0, shape=(6, GRID_SIZE, GRID_SIZE), dtype=np.float32),
             "scalars": spaces.Box(-1.0, 10.0, shape=(8,), dtype=np.float32),
+            "asset_table": spaces.Box(-1.0, 10.0, shape=(MAX_ASSETS, ASSET_FEATURES), dtype=np.float32),
             "action_mask": spaces.MultiBinary(self.n_actions),
         })
 
@@ -401,7 +411,7 @@ class GoldRushEnv(gym.Env):
     # --------------------------------------------------------
     def _obs(self) -> dict:
         """
-        Grid channels (6 x 20 x 20):
+        Grid channels (6 x 20 x 20) — spatial layout:
             ch0: unclaimed mines      (value = level / 3.0)
             ch1: unclaimed rivers     (value = level / 3.0)
             ch2: current player's owned assets (level / 3.0)
@@ -409,16 +419,36 @@ class GoldRushEnv(gym.Env):
             ch4: current player position       (one-hot)
             ch5: opponent position             (one-hot)
 
-        Scalars (8):
+        Scalars (8) — global game state:
             [my_money/WIN_GOLD, opp_money/WIN_GOLD, turn/MAX_TURNS,
              n_my_mines/MAX_ASSETS, n_my_rivers/MAX_ASSETS,
              n_opp_mines/MAX_ASSETS, n_opp_rivers/MAX_ASSETS,
-             current_player_id (0 or 1)]
+             current_player_id]
+
+        Asset table (MAX_ASSETS x 14) — per-asset properties:
+            For each asset slot i (padded with zeros if < MAX_ASSETS):
+            [0]  is_mine          (1.0 or 0.0)
+            [1]  is_river         (1.0 or 0.0)
+            [2]  level / 3.0
+            [3]  reward / 30.0
+            [4]  risk             (0.0 for rivers)
+            [5]  collapsed        (1.0 or 0.0)
+            [6]  owner_is_me      (1.0 or 0.0)
+            [7]  owner_is_opp     (1.0 or 0.0)
+            [8]  owner_is_none    (1.0 or 0.0)
+            [9]  upgrades         (0.0 or 1.0)
+            [10] dist_to_me / 38  (max manhattan on 20x20 = 38)
+            [11] dist_to_opp / 38
+            [12] price_for_me / 200  (capped normalization)
+            [13] affordable       (1.0 if I can buy it and it's unclaimed)
         """
-        grid = np.zeros((6, GRID_SIZE, GRID_SIZE), dtype=np.float32)
         me = self.current_player
         opp = 1 - me
+        p_me = self.players[me]
+        p_opp = self.players[opp]
 
+        # --- Grid ---
+        grid = np.zeros((6, GRID_SIZE, GRID_SIZE), dtype=np.float32)
         for asset in self.all_assets:
             x, y = asset.x, asset.y
             if asset.owner is None:
@@ -430,12 +460,10 @@ class GoldRushEnv(gym.Env):
                 grid[2, y, x] = asset.level / 3.0
             else:
                 grid[3, y, x] = asset.level / 3.0
-
-        p_me = self.players[me]
-        p_opp = self.players[opp]
         grid[4, p_me.y, p_me.x] = 1.0
         grid[5, p_opp.y, p_opp.x] = 1.0
 
+        # --- Scalars ---
         scalars = np.array([
             p_me.money / WIN_GOLD,
             p_opp.money / WIN_GOLD,
@@ -447,8 +475,52 @@ class GoldRushEnv(gym.Env):
             float(me),
         ], dtype=np.float32)
 
+        # --- Asset table ---
+        asset_table = np.zeros((MAX_ASSETS, self.asset_features), dtype=np.float32)
+        for i, asset in enumerate(self.all_assets):
+            if i >= MAX_ASSETS:
+                break
+
+            is_mine = 1.0 if asset.asset_type == "mine" else 0.0
+            is_river = 1.0 - is_mine
+            risk = getattr(asset, "risk", 0.0)
+            collapsed = 1.0 if getattr(asset, "collapsed", False) else 0.0
+
+            owner_me = 1.0 if asset.owner == me else 0.0
+            owner_opp = 1.0 if asset.owner == opp else 0.0
+            owner_none = 1.0 if asset.owner is None else 0.0
+
+            d_me = manhattan(p_me.x, p_me.y, asset.x, asset.y)
+            d_opp = manhattan(p_opp.x, p_opp.y, asset.x, asset.y)
+            price = self._price_for(p_me, asset)
+
+            affordable = 1.0 if (owner_none > 0.5 and collapsed < 0.5
+                                 and p_me.money >= price) else 0.0
+
+            asset_table[i] = [
+                is_mine,
+                is_river,
+                asset.level / 3.0,
+                asset.reward / 30.0,
+                risk,
+                collapsed,
+                owner_me,
+                owner_opp,
+                owner_none,
+                float(asset.upgrades),
+                d_me / 38.0,
+                d_opp / 38.0,
+                min(price / 200.0, 1.0),
+                affordable,
+            ]
+
         mask = self._action_mask()
-        return {"grid": grid, "scalars": scalars, "action_mask": mask}
+        return {
+            "grid": grid,
+            "scalars": scalars,
+            "asset_table": asset_table,
+            "action_mask": mask,
+        }
 
     def _action_mask(self) -> np.ndarray:
         mask = np.zeros(self.n_actions, dtype=np.int8)

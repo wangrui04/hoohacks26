@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gold Rush — DQN Eval</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Bitter:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    color: #e0e0e0;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  h1 {
+    font-family: 'Bitter', serif;
+    font-size: 2rem;
+    color: #ffdd00;
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(255,221,0,0.3);
+  }
+
+  #hud {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+  }
+
+  .hud-item {
+    padding: 6px 14px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #111;
+  }
+
+  .hud-item.p1 { border-color: #ff4444; color: #ff6666; }
+  .hud-item.p2 { border-color: #ef44ff; color: #ef66ff; }
+  .hud-item .money { font-weight: 700; font-size: 1.1rem; }
+
+  #canvas-wrap {
+    position: relative;
+    border: 2px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  }
+
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+
+  #log {
+    width: 602px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding: 10px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+
+  #log .entry { padding: 2px 0; border-bottom: 1px solid #1a1a1a; }
+  #log .entry.ai { color: #888; }
+  #log .entry.human { color: #8f8; }
+  #log .entry.win { color: #ffdd00; font-weight: 700; font-size: 0.9rem; }
+  #log .entry .p1 { color: #ff6666; }
+  #log .entry .p2 { color: #ef66ff; }
+  #log .entry .buy { color: #4a9; }
+  #log .entry .upgrade { color: #49f; }
+  #log .entry .skip { color: #666; }
+
+  #actions {
+    width: 602px;
+    margin-top: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #0f1a0f;
+    border: 1px solid #2a4a2a;
+    border-radius: 4px;
+  }
+
+  #actions button {
+    background: #1a2a1a;
+    color: #8f8;
+    border: 1px solid #2a4a2a;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+  }
+
+  #actions button:hover {
+    background: #2a4a2a;
+    border-color: #4a8a4a;
+  }
+
+  #turn-indicator {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    height: 24px;
+    color: #666;
+  }
+
+  #restart-btn {
+    margin-top: 12px;
+    display: none;
+    background: #ffdd00;
+    color: #000;
+    border: none;
+    padding: 10px 30px;
+    font-family: 'Bitter', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  #restart-btn:hover { background: #ffe844; }
+</style>
+</head>
+<body>
+
+<h1>GOLD RUSH</h1>
+
+<div id="hud">
+  <div class="hud-item">Turn <span id="turn-num">1</span></div>
+  <div class="hud-item p1">P1 $<span id="p1-money" class="money">50</span></div>
+  <div class="hud-item p2">P2 $<span id="p2-money" class="money">50</span></div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="grid" width="600" height="600"></canvas>
+</div>
+
+<div id="turn-indicator">Connecting...</div>
+<div id="actions"></div>
+<div id="log"></div>
+<button id="restart-btn">NEW GAME</button>
+
+<script>
+const CELL = 30;
+const SIZE = 20;
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+const log = document.getElementById('log');
+const actionsDiv = document.getElementById('actions');
+const turnInd = document.getElementById('turn-indicator');
+const restartBtn = document.getElementById('restart-btn');
+
+const COLORS = {
+  bg: '#1a1a1a',
+  grid: '#222',
+  mine: '#ffdd00',
+  river: '#4488ff',
+  p1: '#ff4444',
+  p2: '#ef44ff',
+  collapsed: '#333',
+  owned1: 'rgba(255,68,68,0.6)',
+  owned2: 'rgba(239,68,255,0.6)',
+};
+
+let state = null;
+let ws = null;
+
+function connect() {
+  ws = new WebSocket('ws://localhost:8766');
+  ws.onopen = () => { turnInd.textContent = 'Connected — waiting for game...'; };
+  ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+  ws.onclose = () => { turnInd.textContent = 'Disconnected'; };
+}
+
+function handleMessage(msg) {
+  if (msg.type === 'state') {
+    state = msg;
+    render();
+    updateHUD();
+
+    if (msg.last_action) logAction(msg.last_action);
+    if (msg.game_over) {
+      const w = msg.game_over.winner;
+      const label = w === -1 ? 'TIE!' : `Player ${w + 1} wins!`;
+      logEntry(label + ` (P1: $${msg.game_over.money[0]}, P2: $${msg.game_over.money[1]})`, 'win');
+      turnInd.textContent = label;
+      restartBtn.style.display = 'block';
+      actionsDiv.style.display = 'none';
+    }
+  } else if (msg.type === 'your_turn') {
+    turnInd.textContent = `Your turn (Player ${msg.current_player + 1}) — pick an action:`;
+    showActions(msg.valid_actions);
+  }
+}
+
+function showActions(valid) {
+  actionsDiv.innerHTML = '';
+  actionsDiv.style.display = 'flex';
+  for (const v of valid) {
+    const btn = document.createElement('button');
+    btn.textContent = v.label;
+    btn.onclick = () => {
+      ws.send(JSON.stringify({ action: v.action }));
+      actionsDiv.style.display = 'none';
+      turnInd.textContent = 'Waiting...';
+    };
+    actionsDiv.appendChild(btn);
+  }
+}
+
+function logAction(a) {
+  const pClass = a.player === 0 ? 'p1' : 'p2';
+  const tClass = a.action_type || 'skip';
+  const aiLabel = a.is_ai ? ' [AI]' : ' [YOU]';
+  const cls = a.is_ai ? 'ai' : 'human';
+  logEntry(`<span class="${pClass}">P${a.player + 1}</span>${aiLabel}: <span class="${tClass}">${a.label}</span>`, cls);
+}
+
+function logEntry(html, cls = '') {
+  const div = document.createElement('div');
+  div.className = 'entry ' + cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updateHUD() {
+  if (!state) return;
+  document.getElementById('turn-num').textContent = state.turn_number;
+  document.getElementById('p1-money').textContent = state.players[0].money;
+  document.getElementById('p2-money').textContent = state.players[1].money;
+  if (!state.done) {
+    const cp = state.current_player;
+    turnInd.textContent = `Player ${cp + 1}'s turn...`;
+  }
+}
+
+function render() {
+  if (!state) return;
+  const s = state;
+
+  // Background
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, 600, 600);
+
+  // Grid lines
+  ctx.strokeStyle = COLORS.grid;
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= SIZE; i++) {
+    ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, 600); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(600, i * CELL); ctx.stroke();
+  }
+
+  // Assets
+  for (const a of s.assets) {
+    const x = a.x * CELL, y = a.y * CELL;
+
+    if (a.collapsed) {
+      ctx.fillStyle = COLORS.collapsed;
+      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      // X mark
+      ctx.beginPath(); ctx.moveTo(x + 6, y + 6); ctx.lineTo(x + CELL - 6, y + CELL - 6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + CELL - 6, y + 6); ctx.lineTo(x + 6, y + CELL - 6); ctx.stroke();
+      continue;
+    }
+
+    if (a.owner !== null) {
+      ctx.fillStyle = a.owner === 0 ? COLORS.owned1 : COLORS.owned2;
+      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      // Border
+      ctx.strokeStyle = a.owner === 0 ? COLORS.p1 : COLORS.p2;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+    } else {
+      ctx.fillStyle = a.type === 'mine' ? COLORS.mine : COLORS.river;
+      ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+    }
+
+    // Level indicator
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(a.level, x + CELL / 2, y + CELL / 2 + 3);
+  }
+
+  // Players
+  for (let i = 0; i < 2; i++) {
+    const p = s.players[i];
+    const x = p.x * CELL, y = p.y * CELL;
+    ctx.fillStyle = i === 0 ? COLORS.p1 : COLORS.p2;
+    ctx.beginPath();
+    ctx.arc(x + CELL / 2, y + CELL / 2, CELL / 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(`P${i + 1}`, x + CELL / 2, y + CELL / 2 + 4);
+  }
+
+  // Current player highlight
+  if (!s.done) {
+    const cp = s.players[s.current_player];
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(cp.x * CELL - 2, cp.y * CELL - 2, CELL + 4, CELL + 4);
+    ctx.setLineDash([]);
+  }
+}
+
+restartBtn.onclick = () => {
+  ws.send(JSON.stringify({ restart: true }));
+  restartBtn.style.display = 'none';
+  log.innerHTML = '';
+  turnInd.textContent = 'Starting new game...';
+};
+
+connect();
+</script>
+</body>
+</html>
