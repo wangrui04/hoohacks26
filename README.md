@@ -17,6 +17,11 @@
 * A game consists of 5 matches
 * A player needs to win 3/5 matches to win the game
 
+## Run Command
+```txt
+python3 -m http.server 8000
+```
+
 ## Authors:
 * Zach Risheq
 * Rui Wang
