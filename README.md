@@ -21,7 +21,7 @@
 ```txt
 python3 -m http.server 8000
 ```
-[Play the game](http://localhost:8000/index.html)
+[Play the game](http://localhost:8000/index.html) after running the command in terminal.
 
 ## Authors:
 * Zach Risheq
