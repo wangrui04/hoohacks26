@@ -6,9 +6,9 @@
 const BORDER_PAD = 40;
 
 // Sprites are drawn slightly larger than the cell for overlap effect
-const SPRITE_SCALE = 1.7;
-const RIVER_SCALE = 1.0;
-const MINE_SCALE = 2.5;
+const SPRITE_SCALE = 1.5;
+const RIVER_SCALE = 1.5;
+const MINE_SCALE = 1.0;
 const SPRITE_PX = Math.round(CELL_PX * SPRITE_SCALE);
 const RIVER_PX = Math.round(CELL_PX * RIVER_SCALE);
 const MINE_PX = Math.round(CELL_PX * MINE_SCALE);
@@ -36,14 +36,22 @@ const sprites = {
   map:            loadImg("Images/Map.png"),
   mapBorder:      loadImg("Images/MapBorder.png"),
   mine:           loadImg("Images/Mine.png"),
-  mineClaimed:    loadImg("Images/MineClaimed.png"),
-  mineUpgraded:   loadImg("Images/MineUpgraded.png"),
   mineCollapsed:  loadImg("Images/MineCollapsed.png"),
-  river:          loadImg("Images/River2.png"),
-  riverClaimed:   loadImg("Images/RiverClaimed.png"),
-  riverUpgraded:  loadImg("Images/RiverUpgraded.png"),
-  redSettlement:  loadImg("Images/RedSettlement.png"),
-  purpleSettlement: loadImg("Images/PurpleSettlement.png"),
+  // Player 1 (Red) claimed/upgraded
+  rMineClaimed:   loadImg("Images/RMineClaimed.png"),
+  rMineUpgraded:  loadImg("Images/RMineUpgraded.png"),
+  rRiverClaimed:  loadImg("Images/RRiverClaimed.png"),
+  rRiverUpgraded: loadImg("Images/RRiverUpgraded.png"),
+  // Player 2 (Purple) claimed/upgraded
+  pMineClaimed:   loadImg("Images/PMineClaimed.png"),
+  pMineUpgraded:  loadImg("Images/PMineUpgraded.png"),
+  pRiverClaimed:  loadImg("Images/PRiverClaimed.png"),
+  pRiverUpgraded: loadImg("Images/PRiverUpgraded.png"),
+  // Unclaimed river
+  river:          loadImg("Images/River.png"),
+  // Settlements
+  redSettlement:  loadImg("Images/RSettlement.png"),
+  purpleSettlement: loadImg("Images/PSettlement.png"),
 };
 
 // Helper: pixel position of a grid cell (accounting for border offset)
@@ -97,14 +105,21 @@ function drawRiverSprite(img, gx, gy) {
 
 function getMineSprite(mine) {
   if (mine.collapsed) return sprites.mineCollapsed;
-  if (mine.owner && mine.upgrades >= 1) return sprites.mineUpgraded;
-  if (mine.owner) return sprites.mineClaimed;
+  if (mine.owner) {
+    // Determine which player owns it: player 1 (index 0) = R, player 2 (index 1) = P
+    const isP1 = mine.owner === players[0];
+    if (mine.upgrades >= 1) return isP1 ? sprites.rMineUpgraded : sprites.pMineUpgraded;
+    return isP1 ? sprites.rMineClaimed : sprites.pMineClaimed;
+  }
   return sprites.mine;
 }
 
 function getRiverSprite(river) {
-  if (river.owner && river.upgrades >= 1) return sprites.riverUpgraded;
-  if (river.owner) return sprites.riverClaimed;
+  if (river.owner) {
+    const isP1 = river.owner === players[0];
+    if (river.upgrades >= 1) return isP1 ? sprites.rRiverUpgraded : sprites.pRiverUpgraded;
+    return isP1 ? sprites.rRiverClaimed : sprites.pRiverClaimed;
+  }
   return sprites.river;
 }
 
