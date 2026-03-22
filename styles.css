@@ -211,7 +211,7 @@ button.gold-btn:active,
   color: #888;
 }
 
-/* Rules overlay */
+/* Rules overlay - This part allowed the rules to be displayed on top of the game */
 #rules-overlay {
   position: fixed;
   top: 0;
