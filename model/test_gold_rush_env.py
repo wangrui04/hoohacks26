@@ -116,16 +116,16 @@ class TestRiskComputation(unittest.TestCase):
 
 
 class TestRewardValues(unittest.TestCase):
-    """Verify reward = level * 10 for mines, level * 8 for rivers."""
+    """Verify reward = 10 for all mines, 5 for all rivers (fixed, not level-scaled)."""
 
     def test_rewards(self):
         env = GoldRushEnv(num_mines=10, num_rivers=10)
         env.reset(seed=42)
         for asset in env.all_assets:
             if asset.asset_type == "mine":
-                self.assertEqual(asset.reward, asset.level * 10)
+                self.assertEqual(asset.reward, 10)
             else:
-                self.assertEqual(asset.reward, asset.level * 8)
+                self.assertEqual(asset.reward, 5)
 
 
 class TestSceneGeneration(unittest.TestCase):
@@ -154,7 +154,7 @@ class TestSceneGeneration(unittest.TestCase):
             n_mines = sum(1 for a in env.all_assets if a.asset_type == "mine")
             n_rivers = sum(1 for a in env.all_assets if a.asset_type == "river")
             self.assertTrue(5 <= n_mines <= 12, f"Mine count {n_mines} out of [5,12]")
-            self.assertTrue(7 <= n_rivers <= 17, f"River count {n_rivers} out of [7,17]")
+            self.assertTrue(7 <= n_rivers <= 10, f"River count {n_rivers} out of [7,10]")
 
     def test_all_within_grid(self):
         env = GoldRushEnv()
@@ -292,11 +292,10 @@ class TestIncomeCollection(unittest.TestCase):
     """Verify collectIncome matches JS — mine income, river income, cave-in."""
 
     def test_mine_income_formula(self):
-        # JS: income = Math.round(mine.reward * (1 + mine.risk))
+        # JS: income = Math.round(mine.reward * (1 + Math.exp(mine.risk)))
         env = GoldRushEnv(num_mines=5, num_rivers=5)
         env.reset(seed=42)
 
-        # Give player 0 a mine, ensure no cave-in
         mine_asset = None
         for a in env.all_assets:
             if a.asset_type == "mine":
@@ -306,19 +305,18 @@ class TestIncomeCollection(unittest.TestCase):
         mine_asset.owner = 0
         env.players[0].owned_mine_indices.append(mine_idx)
 
-        expected_income = round(mine_asset.reward * (1 + mine_asset.risk))
         money_before = env.players[0].money
 
         # Force no cave-in by setting risk to 0
-        original_risk = mine_asset.risk
         mine_asset.risk = 0.0
 
-        # Player 0 skips, player 1 skips → income collected
         env.step(0)  # P0 skip
-        env.step(0)  # P1 skip → triggers collectIncome
+        env.step(0)  # P1 skip -> collectIncome
 
-        # Income with risk=0: round(reward * 1.0) = reward
-        self.assertEqual(env.players[0].money, money_before + mine_asset.reward)
+        # With risk=0: round(reward * (1 + exp(0))) = round(10 * 2) = 20
+        import math
+        expected_income = round(mine_asset.reward * (1 + math.exp(0.0)))
+        self.assertEqual(env.players[0].money, money_before + expected_income)
 
     def test_river_income_is_reward(self):
         env = GoldRushEnv(num_mines=5, num_rivers=5)
@@ -552,6 +550,81 @@ class TestObservation(unittest.TestCase):
         self.assertAlmostEqual(obs_p1["scalars"][0], STARTING_MONEY / WIN_GOLD)  # P1's money
         self.assertAlmostEqual(obs_p1["scalars"][1], 200 / WIN_GOLD)             # opponent (P0)
         self.assertAlmostEqual(obs_p1["scalars"][7], 1.0)                        # I'm player 1
+
+
+class TestMustBuyMineBeforeRiver(unittest.TestCase):
+    """Verify the alternating mine/river constraint from JS."""
+
+    def test_buying_river_sets_flag(self):
+        env = GoldRushEnv(num_mines=5, num_rivers=5)
+        env.reset(seed=42)
+        p = env.players[0]
+        self.assertFalse(p.must_buy_mine_before_river)
+
+        # Find and buy a river
+        for i, a in enumerate(env.all_assets):
+            if a.asset_type == "river" and a.owner is None:
+                price = env._price_for(p, a)
+                if p.money >= price:
+                    env.step(1 + i)  # buy river
+                    self.assertTrue(p.must_buy_mine_before_river)
+                    return
+        self.fail("No affordable river found")
+
+    def test_buying_mine_clears_flag(self):
+        env = GoldRushEnv(num_mines=5, num_rivers=5)
+        env.reset(seed=42)
+        p = env.players[0]
+        p.must_buy_mine_before_river = True
+
+        # Find and buy a mine
+        for i, a in enumerate(env.all_assets):
+            if a.asset_type == "mine" and a.owner is None:
+                price = env._price_for(p, a)
+                if p.money >= price:
+                    env.step(1 + i)
+                    self.assertFalse(p.must_buy_mine_before_river)
+                    return
+        self.fail("No affordable mine found")
+
+    def test_river_masked_when_flag_set(self):
+        env = GoldRushEnv(num_mines=5, num_rivers=5)
+        env.reset(seed=42)
+        env.players[0].must_buy_mine_before_river = True
+
+        mask = env._action_mask()
+        for i, a in enumerate(env.all_assets):
+            if a.asset_type == "river" and a.owner is None:
+                self.assertEqual(mask[1 + i], 0,
+                                 f"River at index {i} should be masked when must_buy_mine_before_river=True")
+
+    def test_mine_still_buyable_when_flag_set(self):
+        env = GoldRushEnv(num_mines=5, num_rivers=5)
+        env.reset(seed=42)
+        env.players[0].must_buy_mine_before_river = True
+
+        mask = env._action_mask()
+        mine_buyable = False
+        for i, a in enumerate(env.all_assets):
+            if a.asset_type == "mine" and a.owner is None and not a.collapsed:
+                price = env._price_for(env.players[0], a)
+                if env.players[0].money >= price and mask[1 + i] == 1:
+                    mine_buyable = True
+                    break
+        self.assertTrue(mine_buyable, "At least one mine should be buyable")
+
+
+class TestMineIncomeFormula(unittest.TestCase):
+    """Verify mine income uses exp(risk): Math.round(reward * (1 + Math.exp(risk)))"""
+
+    def test_income_values(self):
+        import math
+        # risk=0.3 -> round(10 * (1 + exp(0.3))) = round(10 * 2.3499) = round(23.499) = 23
+        self.assertEqual(round(10 * (1 + math.exp(0.3))), 23)
+        # risk=0.5 -> round(10 * (1 + exp(0.5))) = round(10 * 2.6487) = round(26.487) = 26
+        self.assertEqual(round(10 * (1 + math.exp(0.5))), 26)
+        # risk=0.7 -> round(10 * (1 + exp(0.7))) = round(10 * 3.0138) = round(30.138) = 30
+        self.assertEqual(round(10 * (1 + math.exp(0.7))), 30)
 
 
 class TestFullGameplay(unittest.TestCase):

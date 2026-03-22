@@ -137,7 +137,7 @@ function generateCandidateAssets() {
     assets.push({
       x, y, level,
       type: "mine",
-      reward: level * 10,
+      reward: 10,
       risk: Math.round((level * 0.2 + 0.1) * 100) / 100,
     });
     // Temporarily mark cell so randomFreeCell won't pick it again
@@ -150,7 +150,7 @@ function generateCandidateAssets() {
     assets.push({
       x, y, level,
       type: "river",
-      reward: level * 8,
+      reward: 5,
     });
     setCell(x, y, "blue");
   }

@@ -67,7 +67,7 @@ function collectIncome() {
         setCell(mine.x, mine.y, "#333");
         continue;
       }
-      const income = Math.round(mine.reward * (1 + mine.risk));
+      const income = Math.round(mine.reward * (1 + Math.exp(mine.risk)));
       p.curr_money += income;
       incomeDetails.push({ source: mine.label, amount: income, caveIn: false });
     }

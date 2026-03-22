@@ -86,6 +86,7 @@ class PlayerState:
     money: int = STARTING_MONEY
     owned_mine_indices: List[int] = field(default_factory=list)   # indices into all_assets
     owned_river_indices: List[int] = field(default_factory=list)
+    must_buy_mine_before_river: bool = False  # mirrors JS mustBuyMineBeforeRiver
 
 
 # ============================================================
@@ -185,15 +186,20 @@ class GoldRushEnv(gym.Env):
             idx = action - 1
             if idx < len(self.all_assets):
                 asset = self.all_assets[idx]
-                if asset.owner is None and not (asset.asset_type == "mine" and asset.collapsed):
+                # Check mustBuyMineBeforeRiver constraint (mirrors JS)
+                if asset.asset_type == "river" and p.must_buy_mine_before_river:
+                    info["action_type"] = "invalid_must_buy_mine_first"
+                elif asset.owner is None and not (asset.asset_type == "mine" and asset.collapsed):
                     price = self._price_for(p, asset)
                     if p.money >= price:
                         p.money -= price
                         asset.owner = acting_player_idx
                         if asset.asset_type == "mine":
                             p.owned_mine_indices.append(idx)
+                            p.must_buy_mine_before_river = False
                         else:
                             p.owned_river_indices.append(idx)
+                            p.must_buy_mine_before_river = True
                         info["action_type"] = "buy"
                         info["asset_index"] = idx
                         info["price"] = price
@@ -271,7 +277,7 @@ class GoldRushEnv(gym.Env):
     # --------------------------------------------------------
     def _generate_scene(self):
         num_mines = self._fixed_num_mines or random.randint(5, 12)
-        num_rivers = self._fixed_num_rivers or random.randint(7, 17)
+        num_rivers = self._fixed_num_rivers or random.randint(7, 10)
 
         best_assets = None
         best_ratio = float("inf")
@@ -287,7 +293,7 @@ class GoldRushEnv(gym.Env):
                 risk = round((level * 0.2 + 0.1) * 100) / 100
                 candidates.append({
                     "type": "mine", "x": x, "y": y,
-                    "level": level, "reward": level * 10, "risk": risk,
+                    "level": level, "reward": 10, "risk": risk,
                 })
 
             for _ in range(num_rivers):
@@ -295,7 +301,7 @@ class GoldRushEnv(gym.Env):
                 level = random.randint(1, 3)
                 candidates.append({
                     "type": "river", "x": x, "y": y,
-                    "level": level, "reward": level * 8,
+                    "level": level, "reward": 5,
                 })
 
             v1 = self._compute_value(self.players[0], candidates)
@@ -367,7 +373,7 @@ class GoldRushEnv(gym.Env):
             mine.collapsed = true
             money = Math.round(money * (1 - mine.risk))
 
-        Normal mine income: Math.round(mine.reward * (1 + mine.risk))
+        Normal mine income: Math.round(mine.reward * (1 + Math.exp(mine.risk)))
         River income: river.reward (no risk)
 
         Returns per-player income details for info dict.
@@ -386,13 +392,13 @@ class GoldRushEnv(gym.Env):
                 if random.random() < mine.risk * 0.3:
                     mine.collapsed = True
                     p.money = round(p.money * (1 - mine.risk))
-                    loss = balance_before - p.money  # not used in logic, just for report
+                    loss = balance_before - p.money
                     details.append({"source_idx": mine_idx, "amount": -(balance_before - p.money), "cave_in": True})
-                    balance_before = p.money  # update for next cave-in calc
+                    balance_before = p.money
                     continue
 
-                # Normal income
-                income = round(mine.reward * (1 + mine.risk))
+                # Normal income — JS: Math.round(mine.reward * (1 + Math.exp(mine.risk)))
+                income = round(mine.reward * (1 + math.exp(mine.risk)))
                 p.money += income
                 details.append({"source_idx": mine_idx, "amount": income, "cave_in": False})
 
@@ -535,6 +541,9 @@ class GoldRushEnv(gym.Env):
             # Buy slot
             if asset.owner is None:
                 if asset.asset_type == "mine" and asset.collapsed:
+                    continue
+                # mustBuyMineBeforeRiver constraint
+                if asset.asset_type == "river" and p.must_buy_mine_before_river:
                     continue
                 price = self._price_for(p, asset)
                 if p.money >= price:
