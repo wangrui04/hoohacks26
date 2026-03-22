@@ -27,8 +27,8 @@ function clearGrid() {
 
 function pxToGrid(px, py) {
   return {
-    x: Math.floor(px / CELL_PX),
-    y: Math.floor(py / CELL_PX),
+    x: Math.floor((px - BORDER_PAD) / CELL_PX),
+    y: Math.floor((py - BORDER_PAD) / CELL_PX),
   };
 }
 
