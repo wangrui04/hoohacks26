@@ -6,6 +6,7 @@
 const BORDER_PAD = 40;
 
 // Sprites are drawn slightly larger than the cell for overlap effect
+// Each asset has its own scale factor to allow for different sizes 
 const SPRITE_SCALE = 1.5;
 const RIVER_SCALE = 1.5;
 const MINE_SCALE = 1.0;
