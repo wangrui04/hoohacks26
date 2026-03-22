@@ -144,7 +144,8 @@ To actually train the model, we ported the JS game to Python and utilized OpenAI
 
 We made a small eval script to validate the model -- i.e to ensure it is actually playing the game and not just skipping -- then we utilized ONNX to transfer the model from being only runable on Python to being runable on Javascript. 
 
-
+## Video Demo
+[Watch the demo here](https://youtu.be/vLbAQWbFbUo)
 
 ## Authors:
 * Zach Risheq
